@@ -44,7 +44,6 @@ async fn main() {
         .collect_vec();
 
     let topics = Topics::new(cards.iter().cloned());
-    dbg!(topics.0.keys());
 
     serve::serve(topics).await.unwrap();
 }
