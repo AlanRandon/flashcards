@@ -1,3 +1,93 @@
 @tailwind base;
 @tailwind utilities;
 @tailwind components;
+
+@layer base {
+	:root {
+		@apply h-full;
+	}
+
+	body {
+		@apply min-h-full flex flex-col items-stretch justify-start;
+	}
+
+	* {
+		@apply box-border;
+	}
+}
+
+@layer components {
+	.flashcard {
+		@apply h-[10em] min-w-[25ch] relative transition-[rotate] duration-500;
+		perspective: 1000px;
+		transform-style: preserve-3d;
+	}
+
+	.flashcard .flashcard-side {
+		@apply absolute inset-0;
+		@apply grid place-items-center text-center overflow-auto;
+		@apply break-words hyphens-auto;
+		@apply shadow bg-slate-100 p-4 cursor-pointer;
+		backface-visibility: hidden;
+	}
+
+	.flashcard .flashcard-side:last-child {
+		rotate: x 180deg;
+	}
+
+	.flashcard-flipped {
+		rotate: x 180deg;
+	}
+
+	.btn {
+		@apply bg-purple-500 transition-colors rounded-[100vmax] text-purple-50 p-2 px-4 font-bold;
+	}
+
+	.btn:is(:hover, :focus-within) {
+		@apply bg-purple-400;
+	}
+
+	.btn:active {
+		@apply bg-purple-800;
+	}
+
+	@keyframes fade-in {
+		from { opacity: 0; }
+	}
+
+	@keyframes fade-out {
+		to { opacity: 0; }
+	}
+
+	@keyframes slide-from-right {
+		from { transform: translateX(30px); }
+	}
+
+	@keyframes slide-to-left {
+		to { transform: translateX(-30px); }
+	}	
+
+	main {
+		view-transition-name: main;
+	}
+
+	::view-transition-old(main) {
+		animation: 90ms cubic-bezier(0.4, 0, 1, 1) both fade-out,
+    			300ms cubic-bezier(0.4, 0, 0.2, 1) both slide-to-left;
+	}
+
+	::view-transition-new(main) {
+  		animation: 210ms cubic-bezier(0, 0, 0.2, 1) 90ms both fade-in,
+    			300ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
+	}
+
+	::view-transition-old(study-card) {
+		animation: 90ms cubic-bezier(0.4, 0, 1, 1) both fade-out,
+    			300ms cubic-bezier(0.4, 0, 0.2, 1) both slide-to-left;
+	}
+
+	::view-transition-new(study-card) {
+  		animation: 210ms cubic-bezier(0, 0, 0.2, 1) 90ms both fade-in,
+    			300ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
+	}
+}

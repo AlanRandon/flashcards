@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss"
 import plugin from "tailwindcss/plugin"
+import typography from "@tailwindcss/typography"
 
 export default {
 	content: ["src/**/*.{rs,css}"],
@@ -16,6 +17,6 @@ export default {
 			},
 			{ values: theme("width") }
 		)
-	})],
+	}), typography],
 } satisfies Config
 

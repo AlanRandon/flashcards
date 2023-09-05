@@ -1,4 +1,4 @@
-use crate::Topics;
+use crate::{Card, Topics};
 use axum::{
     async_trait,
     body::Body,
@@ -12,6 +12,8 @@ use html_builder::prelude::*;
 use serde::Deserialize;
 use std::{convert::Infallible, sync::Arc};
 use tower_http::normalize_path::NormalizePath;
+
+mod study;
 
 trait NodeExt {
     fn document(self) -> Html<String>;
@@ -34,9 +36,16 @@ where
     Node: From<T>,
 {
     fn document(self) -> Html<String> {
+        const NAV_CLASSES: &str =
+            "bg-slate-100 shadow rounded-b p-4 sticky top-0 z-10 [view-transition-name:nav]";
+
         Html(
             html::document::<Node, Node>(
                 [
+                    meta()
+                        .attr("name", "htmx-config")
+                        .attr("content", r#"{"globalViewTransitions":true}"#)
+                        .into(),
                     style()
                         .child(html_builder::raw_text(include_str!("../dist/style.css")))
                         .into(),
@@ -44,7 +53,7 @@ where
                 ],
                 [
                     nav()
-                        .class("bg-slate-100 shadow rounded-b p-4")
+                        .class(NAV_CLASSES)
                         .child(
                             a().href("/")
                                 .text("Flashcards")
@@ -69,7 +78,35 @@ where
     }
 }
 
-struct HxRequest(bool);
+fn markdown(text: &str) -> Node {
+    let mut result = String::new();
+    pulldown_cmark::html::push_html(
+        &mut result,
+        pulldown_cmark::Parser::new_ext(text, pulldown_cmark::Options::ENABLE_TABLES),
+    );
+    html::Node::RawHtml(result)
+}
+
+fn flashcard(card: &Card) -> Node {
+    div()
+        .class("flashcard")
+        .attr("hx-on:click", "this.classList.toggle('flashcard-flipped')")
+        .child(
+            div()
+                .attr("hx-ignore", true)
+                .class("flashcard-side prose prose-slate")
+                .child(markdown(&card.term)),
+        )
+        .child(
+            div()
+                .attr("hx-ignore", true)
+                .class("flashcard-side prose prose-slate")
+                .child(markdown(&card.definition)),
+        )
+        .into()
+}
+
+pub struct HxRequest(bool);
 
 #[async_trait]
 impl<S> FromRequestParts<S> for HxRequest
@@ -84,8 +121,35 @@ where
 }
 
 #[derive(Debug, Deserialize)]
-struct TopicQuery {
+pub struct TopicQuery {
     name: String,
+}
+
+fn topic_links(name: &str) -> Node {
+    let view = format!("/view?name={name}");
+    let study = format!("/study?name={name}");
+
+    div()
+        .class("flex gap-4 justify-end")
+        .child(
+            a().href(&view)
+                .text("View")
+                .attr("hx-get", view)
+                .attr("hx-target", "main")
+                .attr("hx-swap", "outerHTML")
+                .attr("hx-push-url", true)
+                .class("btn"),
+        )
+        .child(
+            a().href(&study)
+                .text("Study")
+                .attr("hx-get", study)
+                .attr("hx-target", "main")
+                .attr("hx-swap", "outerHTML")
+                .attr("hx-push-url", true)
+                .class("btn"),
+        )
+        .into()
 }
 
 async fn view(
@@ -93,21 +157,42 @@ async fn view(
     State(state): State<Arc<Topics>>,
     HxRequest(is_htmx): HxRequest,
 ) -> impl IntoResponse {
-    main()
-        .children(state.get(&query.name).into_iter().flatten().map(|card| {
-            div()
-                .child(div().text(&card.term))
-                .child(div().text(&card.definition))
-        }))
-        .document_if(!is_htmx)
-}
+    let cards = match state.get(&query.name) {
+        Some(cards) => cards.iter().map(|card| flashcard(card.as_ref())),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                main()
+                    .class("grid place-items-center grow")
+                    .text("Set not found")
+                    .document_if(!is_htmx),
+            )
+                .into_response();
+        }
+    };
 
-async fn study(
-    Query(query): Query<TopicQuery>,
-    State(state): State<Arc<Topics>>,
-    HxRequest(is_htmx): HxRequest,
-) -> impl IntoResponse {
-    main().child(div()).document_if(!is_htmx)
+    let study = format!("/study?name={}", query.name);
+
+    main()
+        .class("auto-grid-[25ch] gap-4 p-4")
+        .child(
+            div()
+                .class("col-span-full grid place-items-center gap-4")
+                .child(h1().class("text-xl font-bold").text(&query.name))
+                .text(format!("{} cards", cards.len()))
+                .child(
+                    a().href(&study)
+                        .text("Study")
+                        .attr("hx-get", study)
+                        .attr("hx-target", "main")
+                        .attr("hx-swap", "outerHTML")
+                        .attr("hx-push-url", true)
+                        .class("btn"),
+                ),
+        )
+        .children(cards)
+        .document_if(!is_htmx)
+        .into_response()
 }
 
 async fn index(
@@ -117,32 +202,10 @@ async fn index(
     main()
         .class("p-4 auto-grid-[25ch] gap-4")
         .children(state.0.keys().map(|topic| {
-            let view = format!("/view?name={topic}");
-            let study = format!("/study?name={topic}");
-
             div()
                 .class("bg-slate-100 shadow rounded p-4 flex flex-col gap-4 justify-between")
                 .child(h2().text(topic))
-                .child(
-                    div()
-                        .class("flex gap-4 justify-end")
-                        .child(
-                            a().href(&view)
-                                .text("View")
-                                .attr("hx-get", view)
-                                .attr("hx-target", "main")
-                                .attr("hx-swap", "outerHTML")
-                                .attr("hx-push-url", true),
-                        )
-                        .child(
-                            a().href(&study)
-                                .text("Study")
-                                .attr("hx-get", study)
-                                .attr("hx-target", "main")
-                                .attr("hx-swap", "outerHTML")
-                                .attr("hx-push-url", true),
-                        ),
-                )
+                .child(topic_links(topic.as_ref()))
         }))
         .document_if(!is_htmx)
 }
@@ -153,11 +216,13 @@ pub async fn serve(state: Topics) -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/", get(index))
         .route("/view", get(view))
-        .route("/study", get(study))
+        .route("/study", get(study::get).post(study::post))
         .fallback(|req: Request<Body>| async move {
             (
                 StatusCode::NOT_FOUND,
-                h1().text(format!("Page {} not found", req.uri()))
+                main()
+                    .class("grid place-items-center grow")
+                    .child(h1().text(format!("Page {} not found", req.uri())))
                     .document(),
             )
         })
