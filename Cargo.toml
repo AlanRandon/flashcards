@@ -15,4 +15,7 @@ tower-http = { version = "0.4", features = ["normalize-path"] }
 tokio = { version = "1", features = ["full"] }
 pulldown-cmark = "0.9"
 rand = "0.8"
+tower-service = "0.3"
+cookie = { version = "0.17", features = ["percent-encode"] }
+sha2 = "0.10"
 

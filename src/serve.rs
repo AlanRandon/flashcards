@@ -10,14 +10,19 @@ use axum::{
 };
 use html_builder::prelude::*;
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::{convert::Infallible, sync::Arc};
 use tower_http::normalize_path::NormalizePath;
 
+mod auth;
 mod study;
 
 trait NodeExt {
-    fn document(self) -> Html<String>;
     fn response(self) -> Html<String>;
+    fn raw_document<I>(items: I) -> Html<String>
+    where
+        I: Iterator<Item = Node>;
+    fn document(self) -> Html<String>;
 
     fn document_if(self, value: bool) -> Html<String>
     where
@@ -35,10 +40,10 @@ impl<T> NodeExt for T
 where
     Node: From<T>,
 {
-    fn document(self) -> Html<String> {
-        const NAV_CLASSES: &str =
-            "bg-slate-100 shadow rounded-b p-4 sticky top-0 z-10 [view-transition-name:nav]";
-
+    fn raw_document<I>(items: I) -> Html<String>
+    where
+        I: Iterator<Item = Node>,
+    {
         Html(
             html::document::<Node, Node>(
                 [
@@ -51,25 +56,32 @@ where
                         .into(),
                     title().text("App").into(),
                 ],
-                [
-                    nav()
-                        .class(NAV_CLASSES)
-                        .child(
-                            a().href("/")
-                                .text("Flashcards")
-                                .attr("hx-get", "/")
-                                .attr("hx-target", "main")
-                                .attr("hx-swap", "outerHTML")
-                                .attr("hx-push-url", true),
-                        )
-                        .into(),
-                    self.into(),
-                    script()
-                        .child(html_builder::raw_text(include_str!("../dist/init.js")))
-                        .into(),
-                ],
+                items.chain(std::iter::once(Node::Element(
+                    script().child(html_builder::raw_text(include_str!("../dist/init.js"))),
+                ))),
             )
             .to_string(),
+        )
+    }
+
+    fn document(self) -> Html<String> {
+        const NAV_CLASSES: &str =
+            "bg-slate-100 shadow rounded-b p-4 sticky top-0 z-10 [view-transition-name:nav]";
+        Self::raw_document::<<[Node; 2] as IntoIterator>::IntoIter>(
+            [
+                Node::Element(
+                    nav().class(NAV_CLASSES).child(
+                        a().href("/")
+                            .text("Flashcards")
+                            .attr("hx-get", "/")
+                            .attr("hx-target", "main")
+                            .attr("hx-swap", "outerHTML")
+                            .attr("hx-push-url", true),
+                    ),
+                ),
+                self.into(),
+            ]
+            .into_iter(),
         )
     }
 
@@ -229,6 +241,12 @@ pub async fn serve(state: Topics) -> Result<(), Box<dyn std::error::Error>> {
         .with_state(state);
 
     let app = NormalizePath::trim_trailing_slash(app);
+
+    let mut hasher = Sha256::new();
+    hasher.update("test");
+    let digest = hasher.finalize();
+
+    let app = auth::Auth::new(app, digest);
 
     let addr = "127.0.0.1:8000".parse()?;
 
