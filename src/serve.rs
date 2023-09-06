@@ -1,23 +1,18 @@
 use crate::{Card, Topics};
 use axum::{
     async_trait,
-    body::Body,
     extract::{FromRequestParts, Query, State},
-    http::{request::Parts, Request, StatusCode},
+    http::{request::Parts, StatusCode},
     response::{Html, IntoResponse},
-    routing::get,
-    Router, ServiceExt,
 };
 use html_builder::prelude::*;
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
 use std::{convert::Infallible, sync::Arc};
-use tower_http::normalize_path::NormalizePath;
 
-mod auth;
-mod study;
+pub mod auth;
+pub mod study;
 
-trait NodeExt {
+pub trait NodeExt {
     fn response(self) -> Html<String>;
     fn raw_document<I>(items: I) -> Html<String>
     where
@@ -164,7 +159,7 @@ fn topic_links(name: &str) -> Node {
         .into()
 }
 
-async fn view(
+pub async fn view(
     Query(query): Query<TopicQuery>,
     State(state): State<Arc<Topics>>,
     HxRequest(is_htmx): HxRequest,
@@ -207,7 +202,7 @@ async fn view(
         .into_response()
 }
 
-async fn index(
+pub async fn index(
     State(state): State<Arc<Topics>>,
     HxRequest(is_htmx): HxRequest,
 ) -> impl IntoResponse {
@@ -220,37 +215,4 @@ async fn index(
                 .child(topic_links(topic.as_ref()))
         }))
         .document_if(!is_htmx)
-}
-
-pub async fn serve(state: Topics) -> Result<(), Box<dyn std::error::Error>> {
-    let state = Arc::new(state);
-
-    let app = Router::new()
-        .route("/", get(index))
-        .route("/view", get(view))
-        .route("/study", get(study::get).post(study::post))
-        .fallback(|req: Request<Body>| async move {
-            (
-                StatusCode::NOT_FOUND,
-                main()
-                    .class("grid place-items-center grow")
-                    .child(h1().text(format!("Page {} not found", req.uri())))
-                    .document(),
-            )
-        })
-        .with_state(state);
-
-    let app = NormalizePath::trim_trailing_slash(app);
-
-    let mut hasher = Sha256::new();
-    hasher.update("test");
-    let digest = hasher.finalize();
-
-    let app = auth::Auth::new(app, digest);
-
-    let addr = "127.0.0.1:8000".parse()?;
-
-    Ok(axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await?)
 }

@@ -10,11 +10,12 @@ trait StatusExt {
 impl StatusExt for io::Result<ExitStatus> {
     fn exit_on_failure(&self) {
         let Ok(status) = self else {
-            process::exit(0);
+            println!("cargo:warning={:?}", self);
+            process::exit(1);
         };
 
         let Some(code) = status.code() else {
-            process::exit(0);
+            process::exit(1);
         };
 
         if !status.success() {
@@ -27,18 +28,33 @@ fn main() {
     println!("cargo:rerun-if-changed=tailwind.config.ts");
     println!("cargo:rerun-if-changed=src");
 
-    Command::new("./node_modules/.bin/tailwind")
-        .args(["-i", "src/style.css", "-o", "dist/style.css", "--minify"])
-        .status()
-        .exit_on_failure();
+    let bin = concat!(env!("CARGO_MANIFEST_DIR"), "/node_modules/.bin");
+    let tailwind = format!("{bin}/tailwind -i src/style.css -o dist/style.css --minify");
+    let esbuild = format!("{bin}/esbuild src/init.ts --outfile=dist/init.js --minify --bundle");
 
-    Command::new("./node_modules/.bin/esbuild")
-        .args([
-            "src/init.ts",
-            "--outfile=dist/init.js",
-            "--minify",
-            "--bundle",
-        ])
-        .status()
-        .exit_on_failure();
+    if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .arg("/C")
+            .arg(tailwind)
+            .status()
+            .exit_on_failure();
+
+        Command::new("cmd")
+            .arg("/C")
+            .arg(esbuild)
+            .status()
+            .exit_on_failure();
+    } else {
+        Command::new("sh")
+            .arg("-c")
+            .arg(tailwind)
+            .status()
+            .exit_on_failure();
+
+        Command::new("sh")
+            .arg("-c")
+            .arg(esbuild)
+            .status()
+            .exit_on_failure();
+    }
 }

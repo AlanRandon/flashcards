@@ -1,6 +1,17 @@
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+    routing::get,
+    Router, ServiceExt,
+};
 use collection::DocumentCollection;
+use html_builder::prelude::*;
 use itertools::Itertools;
+use serve::NodeExt;
+use sha2::{Digest, Sha256};
 use std::{collections::HashMap, sync::Arc};
+use tower_http::normalize_path::NormalizePath;
+use tower_service::Service;
 
 mod collection;
 mod serve;
@@ -34,6 +45,8 @@ impl Topics {
     }
 }
 
+// #[shuttle_runtime::main]
+// async fn main() -> shuttle_axum::ShuttleAxum {
 #[tokio::main]
 async fn main() {
     let collection = DocumentCollection::new(concat!(env!("CARGO_MANIFEST_DIR"), "/data")).unwrap();
@@ -45,5 +58,34 @@ async fn main() {
 
     let topics = Topics::new(cards.iter().cloned());
 
-    serve::serve(topics).await.unwrap();
+    let app = Router::new()
+        .route("/", get(serve::index))
+        .route("/view", get(serve::view))
+        .route("/study", get(serve::study::get).post(serve::study::post))
+        .fallback(|req: Request<Body>| async move {
+            (
+                StatusCode::NOT_FOUND,
+                html::main()
+                    .class("grid place-items-center grow")
+                    .child(h1().text(format!("Page {} not found", req.uri())))
+                    .document(),
+            )
+        })
+        .with_state(Arc::new(topics));
+
+    let app = NormalizePath::trim_trailing_slash(app);
+
+    let mut hasher = Sha256::new();
+    hasher.update("test123");
+    let digest = hasher.finalize();
+
+    let app = serve::auth::Auth::new(app, digest);
+
+    // Ok(app.into())
+
+    let addr = "127.0.0.1:8000".parse().unwrap();
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }

@@ -87,9 +87,9 @@ where
 
                     if user_digest == digest {
                         return Ok((
-                            StatusCode::PERMANENT_REDIRECT,
+                            StatusCode::MOVED_PERMANENTLY,
                             AppendHeaders([
-                                ("Set-Cookie", format!("auth={password}").as_str()),
+                                ("Set-Cookie", format!("auth={password}; Http-Only").as_str()),
                                 ("Location", "/"),
                             ]),
                         )
@@ -104,7 +104,12 @@ where
                     [form()
                         .class("flex items-center justify-center gap-4 flex-col h-full grow")
                         .attr("method", "post")
-                        .child(input().attr("type", "text").attr("name", "password"))
+                        .child(
+                            input()
+                                .attr("type", "text")
+                                .attr("name", "password")
+                                .class("border-slate-500 border-2 rounded-[100vmax] px-4 focus-within:bg-slate-200"),
+                        )
                         .child(
                             input()
                                 .attr("type", "hidden")

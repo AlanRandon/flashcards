@@ -35,19 +35,19 @@ impl DocumentCollection {
             return Ok(Self::Empty)
         };
 
-        if path.is_dir() {
-            if name.to_str() == Some(".git") {
-                Ok(Self::Empty)
-            } else {
-                let entries = fs::read_dir(path)?
-                    .map(|entry| entry.and_then(|entry| Self::new_subdir(entry.path())))
-                    .try_collect()?;
+        if name.to_str() == Some(".git") {
+            return Ok(Self::Empty)
+        }
 
-                Ok(Self::Collection {
-                    topic: name.to_string_lossy().to_string(),
-                    entries,
-                })
-            }
+        if path.is_dir() {
+            let entries = fs::read_dir(path)?
+                .map(|entry| entry.and_then(|entry| Self::new_subdir(entry.path())))
+                .try_collect()?;
+
+            Ok(Self::Collection {
+                topic: name.to_string_lossy().to_string(),
+                entries,
+            })
         } else {
             let Some(stem) = path.file_stem() else {
                 return Ok(Self::Empty);
