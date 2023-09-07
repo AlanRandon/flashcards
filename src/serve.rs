@@ -1,13 +1,17 @@
 use crate::{Card, Topics};
 use axum::{
     async_trait,
+    body::Body,
     extract::{FromRequestParts, Query, State},
-    http::{request::Parts, StatusCode},
+    http::{request::Parts, Request, StatusCode},
     response::{Html, IntoResponse},
+    routing::get,
+    Router, ServiceExt,
 };
 use html_builder::prelude::*;
 use serde::Deserialize;
-use std::{convert::Infallible, sync::Arc};
+use std::{convert::Infallible, net::SocketAddr, sync::Arc};
+use tower_http::normalize_path::NormalizePath;
 
 pub mod auth;
 pub mod study;
@@ -31,6 +35,9 @@ pub trait NodeExt {
     }
 }
 
+pub static mut STYLE_CSS: String = String::new();
+pub static mut INIT_JS: String = String::new();
+
 impl<T> NodeExt for T
 where
     Node: From<T>,
@@ -47,12 +54,12 @@ where
                         .attr("content", r#"{"globalViewTransitions":true}"#)
                         .into(),
                     style()
-                        .child(html_builder::raw_text(include_str!("../dist/style.css")))
+                        .child(html_builder::raw_text(unsafe { &STYLE_CSS }))
                         .into(),
                     title().text("App").into(),
                 ],
                 items.chain(std::iter::once(Node::Element(
-                    script().child(html_builder::raw_text(include_str!("../dist/init.js"))),
+                    script().child(html_builder::raw_text(unsafe { &INIT_JS })),
                 ))),
             )
             .to_string(),
@@ -215,4 +222,37 @@ pub async fn index(
                 .child(topic_links(topic.as_ref()))
         }))
         .document_if(!is_htmx)
+}
+
+pub struct App {
+    pub digest: auth::Digest,
+    pub topics: Topics,
+}
+
+impl App {
+    pub async fn bind(self, addr: &SocketAddr) {
+        let app = Router::new()
+            .route("/", get(index))
+            .route("/view", get(view))
+            .route("/study", get(study::get).post(study::post))
+            .fallback(|req: Request<Body>| async move {
+                (
+                    StatusCode::NOT_FOUND,
+                    html::main()
+                        .class("grid place-items-center grow")
+                        .child(h1().text(format!("Page {} not found", req.uri())))
+                        .document(),
+                )
+            })
+            .with_state(Arc::new(self.topics));
+
+        let app = NormalizePath::trim_trailing_slash(app);
+
+        let app = auth::Auth::new(app, self.digest);
+
+        axum::Server::bind(addr)
+            .serve(app.into_make_service())
+            .await
+            .unwrap();
+    }
 }

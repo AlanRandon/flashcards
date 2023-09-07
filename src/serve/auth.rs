@@ -90,7 +90,7 @@ where
                             StatusCode::MOVED_PERMANENTLY,
                             AppendHeaders([
                                 ("Set-Cookie", format!("auth={password}; Http-Only").as_str()),
-                                ("Location", "/"),
+                                ("Location", &body.uri),
                             ]),
                         )
                             .into_response());
@@ -104,9 +104,10 @@ where
                     [form()
                         .class("flex items-center justify-center gap-4 flex-col h-full grow")
                         .attr("method", "post")
+                        .child(h1().class("text-2xl").text("Flashcards"))
                         .child(
                             input()
-                                .attr("type", "text")
+                                .attr("type", "password")
                                 .attr("name", "password")
                                 .class("border-slate-500 border-2 rounded-[100vmax] px-4 focus-within:bg-slate-200"),
                         )

@@ -16,14 +16,15 @@ pub async fn get(
     State(state): State<Arc<Topics>>,
     HxRequest(is_htmx): HxRequest,
 ) -> impl IntoResponse {
-    let Some(card) = get_random_card(&query, state) else {
+    let Some(card) = get_random_card(&query, &state) else {
         return (
             StatusCode::NOT_FOUND,
             main()
                 .class("grid place-items-center grow")
                 .text("Set not found")
                 .document_if(!is_htmx),
-        ).into_response();
+        )
+            .into_response();
     };
 
     study(card.as_ref(), &query)
@@ -37,7 +38,7 @@ pub async fn post(
     HxRequest(is_htmx): HxRequest,
     Form(query): Form<TopicQuery>,
 ) -> impl IntoResponse {
-    match get_random_card(&query, state) {
+    match get_random_card(&query, &state) {
         Some(card) => if is_htmx {
             flashcard(&card).response()
         } else {
@@ -99,7 +100,7 @@ fn study(card: &Card, query: &TopicQuery) -> Node {
         .into()
 }
 
-fn get_random_card(query: &TopicQuery, state: Arc<Topics>) -> Option<Arc<Card>> {
+fn get_random_card(query: &TopicQuery, state: &Arc<Topics>) -> Option<Arc<Card>> {
     let mut rng = thread_rng();
     state.get(&query.name)?.choose(&mut rng).cloned()
 }

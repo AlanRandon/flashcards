@@ -1,17 +1,13 @@
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-    routing::get,
-    Router, ServiceExt,
-};
+#![warn(clippy::pedantic)]
+
 use collection::DocumentCollection;
-use html_builder::prelude::*;
 use itertools::Itertools;
-use serve::NodeExt;
 use sha2::{Digest, Sha256};
-use std::{collections::HashMap, sync::Arc};
-use tower_http::normalize_path::NormalizePath;
-use tower_service::Service;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 mod collection;
 mod serve;
@@ -40,52 +36,64 @@ impl Topics {
         Self(topics)
     }
 
+    #[must_use]
     pub fn get(&self, name: &str) -> Option<&[Arc<Card>]> {
-        self.0.get(name).map(|topic| topic.as_slice())
+        self.0.get(name).map(Vec::as_slice)
     }
 }
 
-// #[shuttle_runtime::main]
-// async fn main() -> shuttle_axum::ShuttleAxum {
-#[tokio::main]
-async fn main() {
-    let collection = DocumentCollection::new(concat!(env!("CARGO_MANIFEST_DIR"), "/data")).unwrap();
+fn create_topics(path: impl AsRef<Path>) -> Topics {
+    let collection = DocumentCollection::new(path).unwrap();
     let cards = Vec::<Card>::try_from(collection)
         .unwrap()
         .into_iter()
         .map(Arc::new)
         .collect_vec();
 
-    let topics = Topics::new(cards.iter().cloned());
+    Topics::new(cards.iter().cloned())
+}
 
-    let app = Router::new()
-        .route("/", get(serve::index))
-        .route("/view", get(serve::view))
-        .route("/study", get(serve::study::get).post(serve::study::post))
-        .fallback(|req: Request<Body>| async move {
-            (
-                StatusCode::NOT_FOUND,
-                html::main()
-                    .class("grid place-items-center grow")
-                    .child(h1().text(format!("Page {} not found", req.uri())))
-                    .document(),
-            )
-        })
-        .with_state(Arc::new(topics));
+// #[tokio::main]
+// async fn main() {
+//     let topics = create_topics(path);
 
-    let app = NormalizePath::trim_trailing_slash(app);
+//     let mut hasher = Sha256::new();
+//     hasher.update("test123");
+//     let digest = hasher.finalize();
+
+//     serve::App {
+//         digest,
+//         topics,
+//     }
+//     .run("127.0.0.1:8000".parse().unwrap())
+//     .await;
+// }
+
+#[shuttle_runtime::async_trait]
+impl shuttle_runtime::Service for serve::App {
+    async fn bind(self, addr: std::net::SocketAddr) -> Result<(), shuttle_runtime::Error> {
+        self.bind(&addr).await;
+        Ok(())
+    }
+}
+
+#[shuttle_runtime::main]
+#[allow(clippy::unused_async)]
+async fn main(
+    #[shuttle_static_folder::StaticFolder(folder = "data")] data: PathBuf,
+    #[shuttle_static_folder::StaticFolder(folder = "dist")] dist: PathBuf,
+    #[shuttle_secrets::Secrets] secret_store: shuttle_secrets::SecretStore,
+) -> Result<serve::App, shuttle_runtime::Error> {
+    let topics = create_topics(data);
+
+    unsafe {
+        serve::STYLE_CSS = std::fs::read_to_string(dist.join("style.css")).unwrap();
+        serve::INIT_JS = std::fs::read_to_string(dist.join("init.js")).unwrap();
+    }
 
     let mut hasher = Sha256::new();
-    hasher.update("test123");
+    hasher.update(secret_store.get("PASSWORD").unwrap());
     let digest = hasher.finalize();
 
-    let app = serve::auth::Auth::new(app, digest);
-
-    // Ok(app.into())
-
-    let addr = "127.0.0.1:8000".parse().unwrap();
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    Ok(serve::App { digest, topics })
 }

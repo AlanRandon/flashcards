@@ -7,6 +7,7 @@ mod deserialize;
 #[derive(Debug)]
 struct Document(Vec<Card>);
 
+#[allow(clippy::module_name_repetitions)]
 pub enum DocumentCollection {
     Document(String),
     Collection {
@@ -32,11 +33,11 @@ impl DocumentCollection {
         let path = path.as_ref();
 
         let Some(name) = path.file_name() else {
-            return Ok(Self::Empty)
+            return Ok(Self::Empty);
         };
 
         if name.to_str() == Some(".git") {
-            return Ok(Self::Empty)
+            return Ok(Self::Empty);
         }
 
         if path.is_dir() {
@@ -70,7 +71,7 @@ impl DocumentCollection {
                 let topic: Arc<str> = format!(
                     "{}{topic}",
                     match topics.last() {
-                        None => "".to_string(),
+                        None => String::new(),
                         Some(topic) => format!("{topic}/"),
                     }
                 )

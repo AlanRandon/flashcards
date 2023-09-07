@@ -18,18 +18,16 @@ impl Document {
         topics.extend(
             table
                 .remove("topics")
-                .map(Vec::<Arc<str>>::deserialize)
-                .unwrap_or(Ok(Vec::new()))
+                .map_or(Ok(Vec::new()), Vec::<Arc<str>>::deserialize)
                 .map_err(Error::custom)?,
         );
 
         let mut cards = table
             .remove("cards")
-            .map(Vec::<Card>::deserialize)
-            .unwrap_or(Ok(Vec::new()))
+            .map_or(Ok(Vec::new()), Vec::<Card>::deserialize)
             .map_err(Error::custom)?;
 
-        for card in cards.iter_mut() {
+        for card in &mut cards {
             card.topics.extend(topics.iter().cloned());
         }
 
@@ -70,8 +68,7 @@ impl<'de> Deserialize<'de> for Card {
 
         let topics = table
             .remove("topics")
-            .map(Vec::<Arc<str>>::deserialize)
-            .unwrap_or(Ok(Vec::new()))
+            .map_or(Ok(Vec::new()), Vec::<Arc<str>>::deserialize)
             .map_err(Error::custom)?;
 
         Ok(Self {

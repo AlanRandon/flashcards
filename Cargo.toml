@@ -18,7 +18,8 @@ rand = "0.8"
 tower-service = "0.3"
 cookie = { version = "0.17", features = ["percent-encode"] }
 sha2 = "0.10"
-# shuttle-tower = "0.25"
-shuttle-axum = "0.25"
+
 shuttle-runtime = "0.25"
+shuttle-static-folder = "0.25"
+shuttle-secrets = "0.25"
 

@@ -28,6 +28,11 @@ fn main() {
     println!("cargo:rerun-if-changed=tailwind.config.ts");
     println!("cargo:rerun-if-changed=src");
 
+    // don't run node on shuttle
+    if !cfg!(debug_assertions) {
+        return;
+    }
+
     let bin = concat!(env!("CARGO_MANIFEST_DIR"), "/node_modules/.bin");
     let tailwind = format!("{bin}/tailwind -i src/style.css -o dist/style.css --minify");
     let esbuild = format!("{bin}/esbuild src/init.ts --outfile=dist/init.js --minify --bundle");
