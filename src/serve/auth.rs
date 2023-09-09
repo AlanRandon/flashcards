@@ -89,7 +89,10 @@ where
                         return Ok((
                             StatusCode::MOVED_PERMANENTLY,
                             AppendHeaders([
-                                ("Set-Cookie", format!("auth={password}; Http-Only").as_str()),
+                                (
+                                    "Set-Cookie",
+                                    format!("auth={password}; Http-Only; Secure").as_str(),
+                                ),
                                 ("Location", &body.uri),
                             ]),
                         )
@@ -104,6 +107,7 @@ where
                     [form()
                         .class("flex items-center justify-center gap-4 flex-col h-full grow")
                         .attr("method", "post")
+                        .attr("action", &uri)
                         .child(h1().class("text-2xl").text("Flashcards"))
                         .child(
                             input()
@@ -117,7 +121,7 @@ where
                                 .attr("value", uri)
                                 .attr("name", "uri"),
                         )
-                        .child(input().attr("type", "submit").class("btn"))
+                        .child(button().attr("type", "submit").class("btn").text("Login"))
                         .into()]
                     .into_iter(),
                 ),

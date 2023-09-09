@@ -68,17 +68,16 @@ where
 
     fn document(self) -> Html<String> {
         const NAV_CLASSES: &str =
-            "bg-slate-100 shadow rounded-b p-4 sticky top-0 z-10 [view-transition-name:nav]";
+            "bg-slate-100 shadow rounded-b p-4 sticky top-0 z-10 [view-transition-name:nav] h-fit";
         Self::raw_document::<<[Node; 2] as IntoIterator>::IntoIter>(
             [
                 Node::Element(
-                    nav().class(NAV_CLASSES).child(
+                    nav().class(NAV_CLASSES).attr("hx-boost", true).child(
                         a().href("/")
+                            .class("font-bold")
                             .text("Flashcards")
-                            .attr("hx-get", "/")
                             .attr("hx-target", "main")
-                            .attr("hx-swap", "outerHTML")
-                            .attr("hx-push-url", true),
+                            .attr("hx-swap", "outerHTML"),
                     ),
                 ),
                 self.into(),
@@ -130,40 +129,19 @@ where
     type Rejection = Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        Ok(Self(parts.headers.get("Hx-Request").is_some()))
+        Ok(Self(
+            parts.headers.get("Hx-Request").is_some()
+                && !parts
+                    .headers
+                    .get("Hx-Trigger")
+                    .is_some_and(|target| matches!(target.to_str(), Ok("auth-form"))),
+        ))
     }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct TopicQuery {
     name: String,
-}
-
-fn topic_links(name: &str) -> Node {
-    let view = format!("/view?name={name}");
-    let study = format!("/study?name={name}");
-
-    div()
-        .class("flex gap-4 justify-end")
-        .child(
-            a().href(&view)
-                .text("View")
-                .attr("hx-get", view)
-                .attr("hx-target", "main")
-                .attr("hx-swap", "outerHTML")
-                .attr("hx-push-url", true)
-                .class("btn"),
-        )
-        .child(
-            a().href(&study)
-                .text("Study")
-                .attr("hx-get", study)
-                .attr("hx-target", "main")
-                .attr("hx-swap", "outerHTML")
-                .attr("hx-push-url", true)
-                .class("btn"),
-        )
-        .into()
 }
 
 pub async fn view(
@@ -178,7 +156,7 @@ pub async fn view(
                 StatusCode::NOT_FOUND,
                 main()
                     .class("grid place-items-center grow")
-                    .text("Set not found")
+                    .child(p().class("grow").text("Set not found"))
                     .document_if(!is_htmx),
             )
                 .into_response();
@@ -188,6 +166,7 @@ pub async fn view(
     let study = format!("/study?name={}", query.name);
 
     main()
+        .attr("hx-boost", true)
         .class("auto-grid-[25ch] gap-4 p-4")
         .child(
             div()
@@ -195,12 +174,10 @@ pub async fn view(
                 .child(h1().class("text-xl font-bold").text(&query.name))
                 .text(format!("{} cards", cards.len()))
                 .child(
-                    a().href(&study)
+                    a().href(study)
                         .text("Study")
-                        .attr("hx-get", study)
                         .attr("hx-target", "main")
                         .attr("hx-swap", "outerHTML")
-                        .attr("hx-push-url", true)
                         .class("btn"),
                 ),
         )
@@ -214,12 +191,33 @@ pub async fn index(
     HxRequest(is_htmx): HxRequest,
 ) -> impl IntoResponse {
     main()
+        .attr("hx-boost", true)
         .class("p-4 auto-grid-[25ch] gap-4")
         .children(state.0.keys().map(|topic| {
             div()
                 .class("bg-slate-100 shadow rounded p-4 flex flex-col gap-4 justify-between")
                 .child(h2().text(topic))
-                .child(topic_links(topic.as_ref()))
+                .child({
+                    let view = format!("/view?name={topic}");
+                    let study = format!("/study?name={topic}");
+
+                    div()
+                        .class("flex gap-4 justify-end")
+                        .child(
+                            a().href(&view)
+                                .text("View")
+                                .attr("hx-target", "main")
+                                .attr("hx-swap", "outerHTML")
+                                .class("btn"),
+                        )
+                        .child(
+                            a().href(&study)
+                                .text("Study")
+                                .attr("hx-target", "main")
+                                .attr("hx-swap", "outerHTML")
+                                .class("btn"),
+                        )
+                })
         }))
         .document_if(!is_htmx)
 }
@@ -239,6 +237,7 @@ impl App {
                 (
                     StatusCode::NOT_FOUND,
                     html::main()
+                        .attr("hx-boost", true)
                         .class("grid place-items-center grow")
                         .child(h1().text(format!("Page {} not found", req.uri())))
                         .document(),

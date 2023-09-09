@@ -20,6 +20,7 @@ pub async fn get(
         return (
             StatusCode::NOT_FOUND,
             main()
+                .attr("hx-boost", true)
                 .class("grid place-items-center grow")
                 .text("Set not found")
                 .document_if(!is_htmx),
@@ -71,7 +72,9 @@ fn study(card: &Card, query: &TopicQuery) -> Node {
         .child(
             form()
                 .class("grid gap-4 [view-transition-name:study]")
-                .attr("hx-post", "/study")
+                .attr("hx-boost", true)
+                .attr("method", "post")
+                .attr("action", "/study")
                 .attr("hx-target", "find div")
                 .attr(
                     "hx-trigger",
