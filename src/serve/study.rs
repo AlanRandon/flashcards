@@ -1,4 +1,4 @@
-use super::{flashcard, HxRequest, NodeExt, TopicQuery};
+use super::{HxRequest, NodeExt, TopicQuery};
 use crate::{Card, Topics};
 use axum::{
     extract::{Query, State},
@@ -50,19 +50,17 @@ fn study(card: &Card, query: &TopicQuery) -> Node {
                     "flex justify-content-center flex-col gap-4 [view-transition-name:study] grow p-4",
                 )
                 .attr("method", "get")
-                .attr("action", format!("study?name={}", query.name))
+                .attr("action", "/study")
                 .attr("hx-boost", true)
                 .attr("hx-headers", r#"{"Flashcards-Single-Card":true}"#)
                 .attr("hx-target", "find div")
+                .attr("hx-swap", "outerHTML")
                 .attr(
                     "hx-trigger",
                     "submit, keyup[key=='Enter'&&!shiftKey] from:body",
                 )
-                .child(
-                    div()
-                        .class("[view-transition-name:study-card] grow flashcard-stretch")
-                        .child(flashcard(card)),
-                )
+                .child(input().attr("type", "hidden").attr("name", "name").attr("value", &query.name))
+                .child(flashcard(card))
                 .child(
                     div()
                         .class("flex gap-4 items-center justify-center")
@@ -75,4 +73,22 @@ fn study(card: &Card, query: &TopicQuery) -> Node {
 fn get_random_card(query: &TopicQuery, state: &Arc<Topics>) -> Option<Arc<Card>> {
     let mut rng = thread_rng();
     state.get(&query.name)?.choose(&mut rng).cloned()
+}
+
+fn flashcard(card: &Card) -> Node {
+    div()
+        .class("flex flex-col gap-4 [view-transition-name:study-card] grow flashcard-stretch")
+        .child(super::flashcard(card))
+        .child(
+            div()
+                .class("flex gap-4 items-center justify-center flex-wrap")
+                .children(card.topics.iter().map(|topic| {
+                    a().href(format!("/view/?name={topic}"))
+                        .attr("hx-target", "main")
+                        .attr("hx-swap", "outerHTML show:window:top")
+                        .class("btn text-xs")
+                        .text(topic)
+                })),
+        )
+        .into()
 }

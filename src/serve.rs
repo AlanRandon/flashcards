@@ -5,8 +5,8 @@ use axum::{
     extract::{FromRequestParts, Query, State},
     http::{request::Parts, Request, StatusCode},
     response::{Html, IntoResponse},
-    routing::get,
-    Router, ServiceExt,
+    routing::{get, post},
+    Form, Router, ServiceExt,
 };
 use html_builder::prelude::*;
 use serde::Deserialize;
@@ -186,40 +186,110 @@ pub async fn view(
         .into_response()
 }
 
+fn search_form(state: Arc<Topics>, filter: impl Fn(&str, &[Arc<Card>]) -> bool) -> Node {
+    const INPUT_CLASSES: &str = "border-slate-200 border-2 rounded-[100vmax] focus-within:border-slate-200 transition-colors p-2";
+
+    main()
+        .attr("hx-boost", true)
+        .class("p-4 grid gap-4")
+        .child(
+            form()
+                .class("w-full grid place-items-center gap-4 [view-transition-name:search]")
+                .attr("action", "/search")
+                .attr("method", "post")
+                .attr("hx-target", "#topic-list")
+                .attr("hx-swap", "outerHTML show:window:top")
+                .attr(
+                    "hx-trigger",
+                    "keyup changed delay:300ms from:find input, submit",
+                )
+                .attr("hx-push-url", false)
+                .child(h2().text("Search"))
+                .child(
+                    div()
+                        .class("flex gap-4 items-center justify-center flex-wrap")
+                        .child(
+                            input()
+                                .attr("type", "search")
+                                .attr("name", "q")
+                                .class(INPUT_CLASSES),
+                        )
+                        .child(
+                            noscript()
+                                .child(button().attr("type", "submit").class("btn").text("Go")),
+                        ),
+                ),
+        )
+        .child(topic_list(state, filter))
+        .into()
+}
+
+fn topic_list(state: Arc<Topics>, filter: impl Fn(&str, &[Arc<Card>]) -> bool) -> Node {
+    div()
+        .id("topic-list")
+        .class("auto-grid-[25ch] gap-4")
+        .children(
+            state
+                .0
+                .iter()
+                .filter(|(topic, cards)| filter(topic, cards))
+                .map(|(topic, _)| {
+                    div()
+                        .class(
+                            "bg-slate-100 shadow rounded p-4 flex flex-col gap-4 justify-between",
+                        )
+                        .child(h2().text(topic))
+                        .child({
+                            let view = format!("/view?name={topic}");
+                            let study = format!("/study?name={topic}");
+
+                            div()
+                                .id(format!("topic-{topic}"))
+                                .class("flex gap-4 justify-end")
+                                .child(
+                                    a().href(view)
+                                        .text("View")
+                                        .attr("hx-target", "main")
+                                        .attr("hx-swap", "outerHTML show:window:top")
+                                        .class("btn"),
+                                )
+                                .child(
+                                    a().href(study)
+                                        .text("Study")
+                                        .attr("hx-target", "main")
+                                        .attr("hx-swap", "outerHTML show:window:top")
+                                        .class("btn"),
+                                )
+                        })
+                }),
+        )
+        .into()
+}
+
 pub async fn index(
     State(state): State<Arc<Topics>>,
     HxRequest(is_htmx): HxRequest,
 ) -> impl IntoResponse {
-    main()
-        .attr("hx-boost", true)
-        .class("p-4 auto-grid-[25ch] gap-4")
-        .children(state.0.keys().map(|topic| {
-            div()
-                .class("bg-slate-100 shadow rounded p-4 flex flex-col gap-4 justify-between")
-                .child(h2().text(topic))
-                .child({
-                    let view = format!("/view?name={topic}");
-                    let study = format!("/study?name={topic}");
+    search_form(state, |_, _| true).document_if(!is_htmx)
+}
 
-                    div()
-                        .class("flex gap-4 justify-end")
-                        .child(
-                            a().href(view)
-                                .text("View")
-                                .attr("hx-target", "main")
-                                .attr("hx-swap", "outerHTML show:window:top")
-                                .class("btn"),
-                        )
-                        .child(
-                            a().href(study)
-                                .text("Study")
-                                .attr("hx-target", "main")
-                                .attr("hx-swap", "outerHTML show:window:top")
-                                .class("btn"),
-                        )
-                })
-        }))
-        .document_if(!is_htmx)
+#[derive(Debug, Deserialize)]
+pub struct SearchBody {
+    q: String,
+}
+
+#[axum::debug_handler]
+pub async fn search(
+    State(state): State<Arc<Topics>>,
+    HxRequest(is_htmx): HxRequest,
+    Form(query): Form<SearchBody>,
+) -> impl IntoResponse {
+    let filter = |name: &str, _: &_| name.contains(&query.q);
+    if is_htmx {
+        topic_list(state, filter).response()
+    } else {
+        search_form(state, filter).document()
+    }
 }
 
 pub struct App {
@@ -231,6 +301,7 @@ impl App {
     pub async fn bind(self, addr: &SocketAddr) {
         let app = Router::new()
             .route("/", get(index))
+            .route("/search", post(search))
             .route("/view", get(view))
             .route("/study", get(study::get))
             .fallback(|req: Request<Body>| async move {
