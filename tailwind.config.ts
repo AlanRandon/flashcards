@@ -3,7 +3,7 @@ import plugin from "tailwindcss/plugin"
 import typography from "@tailwindcss/typography"
 
 export default {
-	content: ["src/**/*.{rs,css}"],
+	content: ["src/**/*.{rs,css,ts}"],
 	theme: {
 		extend: {},
 	},

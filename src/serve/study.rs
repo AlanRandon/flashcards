@@ -2,9 +2,8 @@ use super::{flashcard, HxRequest, NodeExt, TopicQuery};
 use crate::{Card, Topics};
 use axum::{
     extract::{Query, State},
-    http::StatusCode,
-    response::IntoResponse,
-    Form,
+    http::{HeaderMap, StatusCode},
+    response::{AppendHeaders, IntoResponse},
 };
 use html_builder::prelude::*;
 use rand::prelude::*;
@@ -15,6 +14,7 @@ pub async fn get(
     Query(query): Query<TopicQuery>,
     State(state): State<Arc<Topics>>,
     HxRequest(is_htmx): HxRequest,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let Some(card) = get_random_card(&query, &state) else {
         return (
@@ -22,82 +22,51 @@ pub async fn get(
             main()
                 .attr("hx-boost", true)
                 .class("grid place-items-center grow")
-                .text("Set not found")
+                .text("Card not found")
                 .document_if(!is_htmx),
         )
             .into_response();
     };
 
-    study(card.as_ref(), &query)
-        .document_if(!is_htmx)
-        .into_response()
-}
+    let response = if headers.contains_key("Flashcards-Single-Card") {
+        flashcard(card.as_ref()).response().into_response()
+    } else {
+        study(card.as_ref(), &query)
+            .document_if(!is_htmx)
+            .into_response()
+    };
 
-#[axum::debug_handler]
-pub async fn post(
-    State(state): State<Arc<Topics>>,
-    HxRequest(is_htmx): HxRequest,
-    Form(query): Form<TopicQuery>,
-) -> impl IntoResponse {
-    match get_random_card(&query, &state) {
-        Some(card) => if is_htmx {
-            flashcard(&card).response()
-        } else {
-            study(&card, &query).document()
-        }
-        .into_response(),
-        None => {
-            if is_htmx {
-                (
-                    StatusCode::NOT_FOUND,
-                    html::text("Card not found").response(),
-                )
-                    .into_response()
-            } else {
-                (
-                    StatusCode::NOT_FOUND,
-                    html::text("Card not found").document(),
-                )
-                    .into_response()
-            }
-        }
-    }
+    (AppendHeaders([("Cache-Control", "no-cache")]), response).into_response()
 }
 
 fn study(card: &Card, query: &TopicQuery) -> Node {
     main()
-        .class("grid place-items-center grow")
+        .class("flex grow")
         .attr("hx-trigger", "keyup[key==' '] from:body")
         .attr("hx-on::trigger", "this.querySelector('.flashcard').click()")
         .child(
             form()
-                .class("grid gap-4 [view-transition-name:study]")
+                .class(
+                    "flex justify-content-center flex-col gap-4 [view-transition-name:study] grow p-4",
+                )
+                .attr("method", "get")
+                .attr("action", format!("study?name={}", query.name))
                 .attr("hx-boost", true)
-                .attr("method", "post")
-                .attr("action", "/study")
+                .attr("hx-headers", r#"{"Flashcards-Single-Card":true}"#)
                 .attr("hx-target", "find div")
                 .attr(
                     "hx-trigger",
                     "submit, keyup[key=='Enter'&&!shiftKey] from:body",
                 )
                 .child(
-                    input()
-                        .attr("type", "hidden")
-                        .attr("name", "name")
-                        .attr("value", &query.name),
-                )
-                .child(
                     div()
-                        .class("[view-transition-name:study-card]")
+                        .class("[view-transition-name:study-card] grow flashcard-stretch")
                         .child(flashcard(card)),
                 )
                 .child(
-                    div().class("flex gap-4 items-center justify-center").child(
-                        input()
-                            .attr("type", "submit")
-                            .attr("value", "Next")
-                            .class("btn"),
-                    ),
+                    div()
+                        .class("flex gap-4 items-center justify-center")
+                        .child(button().attr("type", "submit").class("btn").text("Next")),
                 ),
         )
         .into()

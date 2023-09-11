@@ -18,16 +18,24 @@
 
 @layer components {
 	.flashcard {
-		@apply min-h-[10em] min-w-[25ch] relative transition-[rotate] duration-500;
+		@apply relative transition-[rotate] duration-500;
 		perspective: 1000px;
 		transform-style: preserve-3d;
 	}
 
+	:not(.flashcard-stretch) > .flashcard {
+		@apply min-h-[10em] min-w-[25ch];
+	}
+
+	.flashcard-stretch > .flashcard {
+		@apply h-full w-full;
+	}
+
 	.flashcard .flashcard-side {
-		@apply absolute inset-0;
 		@apply grid place-items-center text-center overflow-auto;
 		@apply break-words hyphens-auto;
 		@apply shadow bg-slate-100 p-4 cursor-pointer;
+		@apply absolute inset-0 max-w-none;
 		backface-visibility: hidden;
 	}
 

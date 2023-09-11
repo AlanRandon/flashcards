@@ -77,7 +77,7 @@ where
                             .class("font-bold")
                             .text("Flashcards")
                             .attr("hx-target", "main")
-                            .attr("hx-swap", "outerHTML"),
+                            .attr("hx-swap", "outerHTML show:window:top"),
                     ),
                 ),
                 self.into(),
@@ -177,7 +177,7 @@ pub async fn view(
                     a().href(study)
                         .text("Study")
                         .attr("hx-target", "main")
-                        .attr("hx-swap", "outerHTML")
+                        .attr("hx-swap", "outerHTML show:window:top")
                         .class("btn"),
                 ),
         )
@@ -204,17 +204,17 @@ pub async fn index(
                     div()
                         .class("flex gap-4 justify-end")
                         .child(
-                            a().href(&view)
+                            a().href(view)
                                 .text("View")
                                 .attr("hx-target", "main")
-                                .attr("hx-swap", "outerHTML")
+                                .attr("hx-swap", "outerHTML show:window:top")
                                 .class("btn"),
                         )
                         .child(
-                            a().href(&study)
+                            a().href(study)
                                 .text("Study")
                                 .attr("hx-target", "main")
-                                .attr("hx-swap", "outerHTML")
+                                .attr("hx-swap", "outerHTML show:window:top")
                                 .class("btn"),
                         )
                 })
@@ -232,7 +232,7 @@ impl App {
         let app = Router::new()
             .route("/", get(index))
             .route("/view", get(view))
-            .route("/study", get(study::get).post(study::post))
+            .route("/study", get(study::get))
             .fallback(|req: Request<Body>| async move {
                 (
                     StatusCode::NOT_FOUND,
