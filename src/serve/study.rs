@@ -25,7 +25,7 @@ where
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum StudyRequest {
+pub enum StudyRequest {
     SingleFlashcard,
     StudyPage,
 }
@@ -124,7 +124,7 @@ fn study_page(card: &Card, query: &TopicQuery) -> Node {
 
 fn get_random_card<'a>(query: &TopicQuery<'_>, state: &'a Topics) -> Option<&'a Card> {
     let mut rng = thread_rng();
-    state.get(&query.name)?.choose(&mut rng).map(AsRef::as_ref)
+    state.get(query.name)?.choose(&mut rng).map(AsRef::as_ref)
 }
 
 fn flashcard(card: &Card) -> Node {

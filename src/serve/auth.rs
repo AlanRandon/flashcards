@@ -13,7 +13,7 @@ use sha2::{Digest as _, Sha256};
 pub type Digest = GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>;
 
 #[derive(Debug, FromForm)]
-struct LoginBody<'r> {
+pub struct LoginBody<'r> {
     password: &'r str,
     uri: &'r str,
 }
@@ -46,7 +46,7 @@ impl<'r> FromRequest<'r> for Authed {
 }
 
 #[derive(Debug)]
-enum Login {
+pub enum Login {
     Success { password: String, location: String },
     Failure,
 }
