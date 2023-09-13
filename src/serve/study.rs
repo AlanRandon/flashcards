@@ -1,45 +1,97 @@
-use super::{HxRequest, NodeExt, TopicQuery};
+use crate::serve::auth::Authed;
+use crate::serve::response::Response;
+use crate::serve::{HxRequest, TopicQuery};
 use crate::{Card, Topics};
-use axum::{
-    extract::{Query, State},
-    http::{HeaderMap, StatusCode},
-    response::{AppendHeaders, IntoResponse},
-};
 use html_builder::prelude::*;
 use rand::prelude::*;
-use std::sync::Arc;
+use rocket::http::Status;
+use rocket::outcome::Outcome;
+use rocket::request::FromRequest;
+use rocket::response::{self, Responder};
+use rocket::{get, Request, State};
+use std::convert::Infallible;
 
-#[axum::debug_handler]
-pub async fn get(
-    Query(query): Query<TopicQuery>,
-    State(state): State<Arc<Topics>>,
-    HxRequest(is_htmx): HxRequest,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let Some(card) = get_random_card(&query, &state) else {
-        return (
-            StatusCode::NOT_FOUND,
-            main()
-                .attr("hx-boost", true)
-                .class("grid place-items-center grow")
-                .text("Card not found")
-                .document_if(!is_htmx),
-        )
-            .into_response();
-    };
+struct NoCache<T>(T);
 
-    let response = if headers.contains_key("Flashcards-Single-Card") {
-        flashcard(card.as_ref()).response().into_response()
-    } else {
-        study(card.as_ref(), &query)
-            .document_if(!is_htmx)
-            .into_response()
-    };
-
-    (AppendHeaders([("Cache-Control", "no-cache")]), response).into_response()
+impl<'r, T> Responder<'r, 'static> for NoCache<T>
+where
+    T: Responder<'r, 'static>,
+{
+    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
+        response::Response::build_from(self.0.respond_to(req)?)
+            .raw_header("Cache-Control", "no-cache")
+            .ok()
+    }
 }
 
-fn study(card: &Card, query: &TopicQuery) -> Node {
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum StudyRequest {
+    SingleFlashcard,
+    StudyPage,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for StudyRequest {
+    type Error = Infallible;
+
+    async fn from_request(req: &'r Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
+        let headers = req.headers();
+        let single = headers
+            .get("Flashcards-Single-Card")
+            .next()
+            .is_some_and(|value| value == "true");
+
+        Outcome::Success(if single {
+            Self::SingleFlashcard
+        } else {
+            Self::StudyPage
+        })
+    }
+}
+
+#[get("/study?<query..>")]
+pub async fn study(
+    query: TopicQuery<'_>,
+    state: &State<Topics>,
+    htmx: HxRequest,
+    request: StudyRequest,
+    _auth: Authed,
+) -> NoCache<Response> {
+    let Some(card) = get_random_card(&query, &state) else {
+        if request == StudyRequest::SingleFlashcard {
+            return NoCache(Response::Partial(
+                Status::NotFound,
+                html::text("Card not found"),
+            ));
+        }
+
+        let body = main()
+            .attr("hx-boost", true)
+            .class("grid place-items-center grow")
+            .text("Card not found")
+            .into();
+
+        if htmx.0 {
+            return NoCache(Response::Partial(Status::NotFound, body));
+        }
+
+        return NoCache(Response::Page(Status::NotFound, body));
+    };
+
+    match request {
+        StudyRequest::StudyPage => {
+            let main = study_page(&card, &query);
+            if htmx.0 {
+                NoCache(Response::partial(main))
+            } else {
+                NoCache(Response::page(main))
+            }
+        }
+        StudyRequest::SingleFlashcard => NoCache(Response::partial(flashcard(&card))),
+    }
+}
+
+fn study_page(card: &Card, query: &TopicQuery) -> Node {
     main()
         .class("flex grow")
         .attr("hx-trigger", "keyup[key==' '] from:body")
@@ -70,9 +122,9 @@ fn study(card: &Card, query: &TopicQuery) -> Node {
         .into()
 }
 
-fn get_random_card(query: &TopicQuery, state: &Arc<Topics>) -> Option<Arc<Card>> {
+fn get_random_card<'a>(query: &TopicQuery<'_>, state: &'a Topics) -> Option<&'a Card> {
     let mut rng = thread_rng();
-    state.get(&query.name)?.choose(&mut rng).cloned()
+    state.get(&query.name)?.choose(&mut rng).map(AsRef::as_ref)
 }
 
 fn flashcard(card: &Card) -> Node {

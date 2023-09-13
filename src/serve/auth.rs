@@ -1,133 +1,116 @@
-use super::NodeExt;
-use axum::{
-    body::Body,
-    extract::FromRequest,
-    http::{Method, Request, StatusCode},
-    response::{AppendHeaders, IntoResponse, Response},
-};
-use cookie::Cookie;
+use crate::serve::response::Response;
 use html_builder::prelude::*;
-use serde::Deserialize;
-use sha2::{
-    digest::{generic_array::GenericArray, OutputSizeUser},
-    Digest as _, Sha256,
-};
-use std::{future::Future, pin::Pin};
-use tower_service::Service;
+use rocket::form::{Form, FromForm};
+use rocket::http::{CookieJar, Status};
+use rocket::outcome::Outcome;
+use rocket::request::{self, FromRequest, Request};
+use rocket::response::{self, Responder};
+use rocket::{catch, post, State};
+use sha2::digest::generic_array::GenericArray;
+use sha2::digest::OutputSizeUser;
+use sha2::{Digest as _, Sha256};
 
 pub type Digest = GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>;
 
-#[derive(Clone, Debug)]
-pub struct Auth<S> {
-    inner: S,
-    digest: Digest,
+#[derive(Debug, FromForm)]
+struct LoginBody<'r> {
+    password: &'r str,
+    uri: &'r str,
 }
 
-impl<S> Auth<S> {
-    pub fn new(inner: S, digest: Digest) -> Self {
-        Self { inner, digest }
-    }
-}
+pub struct Authed;
 
-impl<S> Service<Request<Body>> for Auth<S>
-where
-    S: Service<Request<Body>, Response = Response> + Send + Clone + 'static,
-    <S as Service<Request<Body>>>::Future: Send,
-    <S as Service<Request<Body>>>::Error: Send,
-{
-    type Error = S::Error;
-    type Response = Response;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Authed {
+    type Error = ();
 
-    fn poll_ready(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
-    }
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+        let Outcome::Success(digest) = request.guard::<&State<Digest>>().await else {
+            return Outcome::Failure((Status::Unauthorized, ()));
+        };
 
-    fn call(&mut self, req: Request<Body>) -> Self::Future {
-        let digest = self.digest;
+        let Some(cookie) = request.cookies().get("auth") else {
+            return Outcome::Failure((Status::Unauthorized, ()));
+        };
 
-        let cookies = req
-            .headers()
-            .get("cookie")
-            .and_then(|value| value.to_str().ok())
-            .unwrap_or_default();
+        let mut hasher = Sha256::new();
+        hasher.update(cookie.value());
+        let user_digest = hasher.finalize();
 
-        for cookie in Cookie::split_parse_encoded(cookies).filter_map(Result::ok) {
-            if cookie.name() == "auth" {
-                let mut hasher = Sha256::new();
-                hasher.update(cookie.value());
-                let user_digest = hasher.finalize();
-
-                if user_digest == digest {
-                    let mut service = self.inner.clone();
-                    return Box::pin(async move { service.call(req).await });
-                }
-            }
+        if user_digest == **digest {
+            Outcome::Success(Self)
+        } else {
+            return Outcome::Failure((Status::Unauthorized, ()));
         }
+    }
+}
 
-        let fut = async move {
-            let uri = req.uri().clone();
+#[derive(Debug)]
+enum Login {
+    Success { password: String, location: String },
+    Failure,
+}
 
-            if req.method() == Method::POST {
-                #[derive(Deserialize, Debug)]
-                struct Body {
-                    password: String,
-                    uri: String,
-                }
+#[rocket::async_trait]
+impl<'r> Responder<'r, 'static> for Login {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        match self {
+            Self::Success { password, location } => {
+                let response = rocket::Response::build()
+                    .status(Status::MovedPermanently)
+                    .raw_header("Set-Cookie", format!("auth={password}; Http-Only; Secure"))
+                    .raw_header("Location", location)
+                    .finalize();
 
-                if let Ok(body) = axum::Form::<Body>::from_request(req, &()).await {
-                    let password = &body.password;
-
-                    let mut hasher = Sha256::new();
-                    hasher.update(password);
-                    let user_digest = hasher.finalize();
-
-                    if user_digest == digest {
-                        return Ok((
-                            StatusCode::MOVED_PERMANENTLY,
-                            AppendHeaders([
-                                (
-                                    "Set-Cookie",
-                                    format!("auth={password}; Http-Only; Secure").as_str(),
-                                ),
-                                ("Location", &body.uri),
-                            ]),
-                        )
-                            .into_response());
-                    }
-                }
+                Ok(response)
             }
+            Self::Failure => Err(Status::Unauthorized),
+        }
+    }
+}
 
-            Ok((
-                StatusCode::UNAUTHORIZED,
-                Node::raw_document(
-                    [form()
-                        .class("flex items-center justify-center gap-4 flex-col h-full grow")
-                        .attr("method", "post")
-                        .attr("action", &uri)
-                        .child(h1().class("text-2xl").text("Flashcards"))
-                        .child(
-                            input()
-                                .attr("type", "password")
-                                .attr("name", "password")
-                                .class("border-slate-500 border-2 rounded-[100vmax] px-4 focus-within:bg-slate-200"),
-                        )
-                        .child(
-                            input()
-                                .attr("type", "hidden")
-                                .attr("value", uri)
-                                .attr("name", "uri"),
-                        )
-                        .child(button().attr("type", "submit").class("btn").text("Login"))
-                        .into()]
-                    .into_iter(),
+#[post("/login", data = "<body>")]
+pub fn login(body: Form<LoginBody<'_>>, digest: &State<Digest>, cookies: &CookieJar<'_>) -> Login {
+    let mut hasher = Sha256::new();
+    hasher.update(body.password);
+    let user_digest = hasher.finalize();
+
+    if user_digest == **digest {
+        Login::Success {
+            password: body.password.to_string(),
+            location: body.uri.to_string(),
+        }
+    } else {
+        Login::Failure
+    }
+}
+
+#[catch(401)]
+pub fn catch_unauthorized(req: &Request) -> Response {
+    let uri = req.uri().path();
+
+    Response::Document(
+        Status::Unauthorized,
+        form()
+            .class("flex items-center justify-center gap-4 flex-col h-full grow")
+            .attr("method", "post")
+            .attr("action", "/login")
+            .child(h1().class("text-2xl").text("Flashcards"))
+            .child(
+                input()
+                    .attr("type", "password")
+                    .attr("name", "password")
+                    .class(
+                    "border-slate-500 border-2 rounded-[100vmax] px-4 focus-within:bg-slate-200",
                 ),
             )
-                .into_response())
-        };
-        Box::pin(fut)
-    }
+            .child(
+                input()
+                    .attr("type", "hidden")
+                    .attr("value", uri)
+                    .attr("name", "uri"),
+            )
+            .child(button().attr("type", "submit").class("btn").text("Login"))
+            .into(),
+    )
 }

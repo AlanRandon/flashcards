@@ -6,20 +6,21 @@ edition = "2021"
 [dependencies]
 # html-builder = { path = "../CLI-apps/crates/html-builder" }
 html-builder = { git = "https://github.com/AlanRandon/CLI-apps" }
-toml = "0.7"
+toml = "0.8"
 serde = { version = "1", features = ["derive", "rc"] }
 itertools = "0.11"
 thiserror = "1.0"
-axum = { version = "0.6", features = ["headers", "macros"] }
-tower-http = { version = "0.4", features = ["normalize-path"] }
+# axum = { version = "0.6", features = ["headers", "macros"] }
+# tower-http = { version = "0.4", features = ["normalize-path"] }
+rocket = "0.5.0-rc.3"
 tokio = { version = "1", features = ["full"] }
 pulldown-cmark = "0.9"
 rand = "0.8"
 tower-service = "0.3"
-cookie = { version = "0.17", features = ["percent-encode"] }
 sha2 = "0.10"
 
 shuttle-runtime = "0.25"
 shuttle-static-folder = "0.25"
 shuttle-secrets = "0.25"
+shuttle-rocket = "0.25"
 

@@ -3,11 +3,9 @@
 use collection::DocumentCollection;
 use itertools::Itertools;
 use sha2::{Digest, Sha256};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 mod collection;
 mod serve;
@@ -53,47 +51,23 @@ fn create_topics(path: impl AsRef<Path>) -> Topics {
     Topics::new(cards.iter().cloned())
 }
 
-// #[tokio::main]
-// async fn main() {
-//     let topics = create_topics(path);
-
-//     let mut hasher = Sha256::new();
-//     hasher.update("test123");
-//     let digest = hasher.finalize();
-
-//     serve::App {
-//         digest,
-//         topics,
-//     }
-//     .run("127.0.0.1:8000".parse().unwrap())
-//     .await;
-// }
-
-#[shuttle_runtime::async_trait]
-impl shuttle_runtime::Service for serve::App {
-    async fn bind(self, addr: std::net::SocketAddr) -> Result<(), shuttle_runtime::Error> {
-        self.bind(&addr).await;
-        Ok(())
-    }
-}
-
 #[shuttle_runtime::main]
 #[allow(clippy::unused_async)]
 async fn main(
     #[shuttle_static_folder::StaticFolder(folder = "data")] data: PathBuf,
     #[shuttle_static_folder::StaticFolder(folder = "dist")] dist: PathBuf,
     #[shuttle_secrets::Secrets] secret_store: shuttle_secrets::SecretStore,
-) -> Result<serve::App, shuttle_runtime::Error> {
+) -> shuttle_rocket::ShuttleRocket {
     let topics = create_topics(data);
 
     unsafe {
-        serve::STYLE_CSS = std::fs::read_to_string(dist.join("style.css")).unwrap();
-        serve::INIT_JS = std::fs::read_to_string(dist.join("init.js")).unwrap();
+        serve::response::STYLE_CSS = std::fs::read_to_string(dist.join("style.css")).unwrap();
+        serve::response::INIT_JS = std::fs::read_to_string(dist.join("init.js")).unwrap();
     }
 
     let mut hasher = Sha256::new();
     hasher.update(secret_store.get("PASSWORD").unwrap());
     let digest = hasher.finalize();
 
-    Ok(serve::App { digest, topics })
+    Ok(serve::app(digest, topics).into())
 }
