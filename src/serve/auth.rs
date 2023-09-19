@@ -70,7 +70,7 @@ impl<'r> Responder<'r, 'static> for Login {
 }
 
 #[post("/login", data = "<body>")]
-pub fn login(body: Form<LoginBody<'_>>, digest: &State<Digest>, cookies: &CookieJar<'_>) -> Login {
+pub fn login(body: Form<LoginBody<'_>>, digest: &State<Digest>) -> Login {
     let mut hasher = Sha256::new();
     hasher.update(body.password);
     let user_digest = hasher.finalize();

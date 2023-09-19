@@ -14,12 +14,7 @@ mod study;
 mod topic_list;
 
 fn markdown(text: &str) -> Node {
-    let mut result = String::new();
-    pulldown_cmark::html::push_html(
-        &mut result,
-        pulldown_cmark::Parser::new_ext(text, pulldown_cmark::Options::ENABLE_TABLES),
-    );
-    html::Node::RawHtml(result)
+    html::Node::RawHtml(crate::render::markdown(text))
 }
 
 fn flashcard(card: &Card) -> Node {
@@ -90,7 +85,7 @@ fn view(query: TopicQuery<'_>, topics: &State<Topics>, htmx: HxRequest, _auth: A
         .child(
             div()
                 .class("col-span-full grid place-items-center gap-4")
-                .child(h1().class("text-xl font-bold").text(&query.name))
+                .child(h1().class("text-xl font-bold").text(query.name))
                 .text(format!("{} cards", cards.len()))
                 .child(
                     a().href(study)

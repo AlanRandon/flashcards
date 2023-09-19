@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 mod collection;
+mod render;
 mod serve;
 
 #[derive(Debug)]

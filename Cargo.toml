@@ -23,4 +23,5 @@ shuttle-runtime = "0.25"
 shuttle-static-folder = "0.25"
 shuttle-secrets = "0.25"
 shuttle-rocket = "0.25"
+katex = "0.4"
 

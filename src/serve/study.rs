@@ -11,7 +11,7 @@ use rocket::response::{self, Responder};
 use rocket::{get, Request, State};
 use std::convert::Infallible;
 
-struct NoCache<T>(T);
+pub struct NoCache<T>(T);
 
 impl<'r, T> Responder<'r, 'static> for NoCache<T>
 where
