@@ -50,14 +50,14 @@ impl<'r> FromRequest<'r> for StudyRequest {
 }
 
 #[get("/study?<query..>")]
-pub async fn study(
+pub fn study(
     query: TopicQuery<'_>,
     state: &State<Topics>,
     htmx: HxRequest,
     request: StudyRequest,
     _auth: Authed,
 ) -> NoCache<Response> {
-    let Some(card) = get_random_card(&query, &state) else {
+    let Some(card) = get_random_card(&query, state) else {
         if request == StudyRequest::SingleFlashcard {
             return NoCache(Response::Partial(
                 Status::NotFound,
@@ -80,14 +80,14 @@ pub async fn study(
 
     match request {
         StudyRequest::StudyPage => {
-            let main = study_page(&card, &query);
+            let main = study_page(card, &query);
             if htmx.0 {
                 NoCache(Response::partial(main))
             } else {
                 NoCache(Response::page(main))
             }
         }
-        StudyRequest::SingleFlashcard => NoCache(Response::partial(flashcard(&card))),
+        StudyRequest::SingleFlashcard => NoCache(Response::partial(flashcard(card))),
     }
 }
 
@@ -111,7 +111,7 @@ fn study_page(card: &Card, query: &TopicQuery) -> Node {
                     "hx-trigger",
                     "submit, keyup[key=='Enter'&&!shiftKey] from:body",
                 )
-                .child(input().attr("type", "hidden").attr("name", "name").attr("value", &query.name))
+                .child(input().attr("type", "hidden").attr("name", "name").attr("value", query.name))
                 .child(flashcard(card))
                 .child(
                     div()

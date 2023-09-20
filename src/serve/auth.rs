@@ -1,7 +1,7 @@
 use crate::serve::response::Response;
 use html_builder::prelude::*;
 use rocket::form::{Form, FromForm};
-use rocket::http::{CookieJar, Status};
+use rocket::http::Status;
 use rocket::outcome::Outcome;
 use rocket::request::{self, FromRequest, Request};
 use rocket::response::{self, Responder};

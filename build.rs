@@ -1,7 +1,5 @@
-use std::{
-    io,
-    process::{self, Command, ExitStatus},
-};
+use std::io;
+use std::process::{self, Command, ExitStatus};
 
 trait StatusExt {
     fn exit_on_failure(&self) {}
@@ -26,6 +24,7 @@ impl StatusExt for io::Result<ExitStatus> {
 
 fn main() {
     println!("cargo:rerun-if-changed=tailwind.config.ts");
+    println!("cargo:rerun-if-changed=postcss.config.js");
     println!("cargo:rerun-if-changed=src");
 
     // don't run node on shuttle
@@ -34,7 +33,7 @@ fn main() {
     }
 
     let bin = concat!(env!("CARGO_MANIFEST_DIR"), "/node_modules/.bin");
-    let tailwind = format!("{bin}/tailwind -i src/style.css -o dist/style.css --minify");
+    let tailwind = format!("{bin}/postcss src/style.css -o dist/style.css");
     let esbuild = format!("{bin}/esbuild src/init.ts --outfile=dist/init.js --minify --bundle");
 
     if cfg!(target_os = "windows") {

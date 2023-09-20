@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use pulldown_cmark as md;
 
 mod katex_scanner {
@@ -104,22 +103,12 @@ mod katex_scanner {
             use katex::Opts;
 
             match self {
-                Self::Text(text) => Ok(text.to_string()),
+                Self::Text(text) => Ok((*text).to_string()),
                 Self::Block(content) => katex::render_with_opts(
                     content,
-                    Opts::builder()
-                        .display_mode(true)
-                        .output_type(katex::OutputType::Html)
-                        .build()
-                        .unwrap(),
+                    Opts::builder().display_mode(true).build().unwrap(),
                 ),
-                Self::Inline(content) => katex::render_with_opts(
-                    content,
-                    Opts::builder()
-                        .output_type(katex::OutputType::Html)
-                        .build()
-                        .unwrap(),
-                ),
+                Self::Inline(content) => katex::render(content),
             }
         }
 
@@ -127,9 +116,9 @@ mod katex_scanner {
             match self.render() {
                 Ok(result) => result,
                 Err(err) => {
-                    eprintln!("Katex error ignored: {}", err);
+                    eprintln!("Katex error ignored: {err}");
                     match self {
-                        Self::Text(text) => text.to_string(),
+                        Self::Text(text) => (*text).to_string(),
                         Self::Block(content) => format!("$${content}$$"),
                         Self::Inline(content) => format!("${content}$"),
                     }
@@ -139,36 +128,12 @@ mod katex_scanner {
     }
 }
 
-pub fn katex(input: &str) -> String {
-    println!("a");
-    let scanner = katex_scanner::Scanner::new(input);
-    scanner.map(|event| event.as_html()).collect()
-}
-
 pub fn markdown(text: &str) -> String {
-    let mut result = String::new();
-    let parser = md::Parser::new_ext(text, md::Options::ENABLE_TABLES);
-    let mut current_text = String::new();
-    let mut events = Vec::new();
-    for event in parser {
-        if let md::Event::Text(text) = event {
-            current_text.push_str(text.as_ref());
-        } else {
-            events.push(md::Event::Text(current_text.clone().into()));
-            current_text.clear();
-            events.push(event);
-        }
-    }
-    events.push(md::Event::Text(current_text.into()));
+    let scanner = katex_scanner::Scanner::new(text);
+    let text = scanner.map(|event| event.as_html()).collect::<String>();
+    let parser = md::Parser::new_ext(&text, md::Options::ENABLE_TABLES);
 
-    md::html::push_html(
-        &mut result,
-        events.into_iter().flat_map(|event| match event {
-            md::Event::Text(text) if text.contains('$') => {
-                std::iter::once(md::Event::Html(katex(&text).into()))
-            }
-            _ => std::iter::once(event),
-        }),
-    );
+    let mut result = String::new();
+    md::html::push_html(&mut result, parser);
     result
 }

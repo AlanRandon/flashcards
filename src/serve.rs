@@ -131,6 +131,9 @@ async fn catcher(status: Status, request: &Request<'_>) -> Response {
 }
 
 pub fn app(digest: auth::Digest, topics: Topics) -> rocket::Rocket<rocket::Build> {
+    const STATIC_FILES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/dist/static");
+    let static_files = rocket::fs::FileServer::from(STATIC_FILES);
+
     rocket::build()
         .mount(
             "/",
@@ -139,9 +142,10 @@ pub fn app(digest: auth::Digest, topics: Topics) -> rocket::Rocket<rocket::Build
                 topic_list::index,
                 topic_list::search,
                 study::study,
-                auth::login
+                auth::login,
             ],
         )
+        .mount("/static", static_files)
         .register("/", catchers![auth::catch_unauthorized, catcher])
         .manage(topics)
         .manage(digest)

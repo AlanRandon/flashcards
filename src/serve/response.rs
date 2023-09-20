@@ -1,5 +1,3 @@
-use std::convert::Infallible;
-
 use html_builder::prelude::*;
 use rocket::http::Status;
 use rocket::response::content::RawHtml;
@@ -30,6 +28,7 @@ impl Response {
         Self::Page(Status::Ok, node.into())
     }
 
+    #[allow(dead_code)]
     pub fn document<T>(node: T) -> Self
     where
         Node: From<T>,
