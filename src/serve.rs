@@ -1,7 +1,8 @@
+use crate::render::filters;
 use crate::{Card, Topics};
+use askama::Template;
 use auth::Authed;
-use html_builder::prelude::*;
-use response::Response;
+use response::{Either, Response};
 use rocket::http::Status;
 use rocket::outcome::Outcome;
 use rocket::request::FromRequest;
@@ -12,29 +13,6 @@ pub mod auth;
 pub mod response;
 mod study;
 mod topic_list;
-
-fn markdown(text: &str) -> Node {
-    html::Node::RawHtml(crate::render::markdown(text))
-}
-
-fn flashcard(card: &Card) -> Node {
-    div()
-        .class("flashcard")
-        .attr("hx-on:click", "this.classList.toggle('flashcard-flipped')")
-        .child(
-            div()
-                .attr("hx-ignore", true)
-                .class("flashcard-side prose prose-slate")
-                .child(markdown(&card.term)),
-        )
-        .child(
-            div()
-                .attr("hx-ignore", true)
-                .class("flashcard-side prose prose-slate")
-                .child(markdown(&card.definition)),
-        )
-        .into()
-}
 
 pub struct HxRequest(bool);
 
@@ -59,44 +37,40 @@ pub struct TopicQuery<'r> {
     name: &'r str,
 }
 
+#[derive(Template)]
+#[template(path = "view.html")]
+struct View<'a> {
+    cards: Vec<&'a Card>,
+    name: &'a str,
+}
+
+#[derive(Template)]
+#[template(
+    source = r#"<main class="grid place-items-center grow"><p class="grow">Set not found</p></main>"#,
+    ext = "html"
+)]
+struct SetNotFound;
+
 #[get("/view?<query..>")]
-fn view(query: TopicQuery<'_>, topics: &State<Topics>, htmx: HxRequest, _auth: Authed) -> Response {
-    let cards = match topics.get(&query.name) {
-        Some(cards) => cards.iter().map(|card| flashcard(card.as_ref())),
-        None => {
-            let body = main()
-                .class("grid place-items-center grow")
-                .child(p().class("grow").text("Set not found"))
-                .into();
-
-            if htmx.0 {
-                return Response::Partial(Status::NotFound, body);
-            }
-
-            return Response::Page(Status::NotFound, body);
-        }
+fn view<'a>(
+    query: TopicQuery<'a>,
+    topics: &'a State<Topics>,
+    htmx: HxRequest,
+    _auth: Authed,
+) -> Response<impl Template + 'a> {
+    let Some(cards) = topics.get(query.name) else {
+        return if htmx.0 {
+            Response::Partial(Status::NotFound, Either::A(SetNotFound))
+        } else {
+            Response::Page(Status::NotFound, Either::A(SetNotFound))
+        };
     };
 
-    let study = format!("/study?name={}", query.name);
-
-    let body: Node = main()
-        .attr("hx-boost", true)
-        .class("auto-grid-[25ch] gap-4 p-4")
-        .child(
-            div()
-                .class("col-span-full grid place-items-center gap-4")
-                .child(h1().class("text-xl font-bold").text(query.name))
-                .text(format!("{} cards", cards.len()))
-                .child(
-                    a().href(study)
-                        .text("Study")
-                        .attr("hx-target", "main")
-                        .attr("hx-swap", "outerHTML show:window:top")
-                        .class("btn"),
-                ),
-        )
-        .children(cards)
-        .into();
+    let cards = cards.iter().map(AsRef::as_ref).collect();
+    let body = Either::B(View {
+        cards,
+        name: query.name,
+    });
 
     if htmx.0 {
         Response::partial(body)
@@ -105,10 +79,22 @@ fn view(query: TopicQuery<'_>, topics: &State<Topics>, htmx: HxRequest, _auth: A
     }
 }
 
+#[derive(Template)]
+#[template(
+    source = r#"<main class="grid place-items-center grow"><h1>{{ err }}</h1></main>"#,
+    ext = "html"
+)]
+struct Error {
+    err: String,
+}
+
 #[catch(default)]
-async fn catcher(status: Status, request: &Request<'_>) -> Response {
+async fn catcher<'a>(
+    status: Status,
+    request: &'a Request<'_>,
+) -> Either<Response<impl Template + 'a>, Response<impl Template>> {
     let Outcome::Success(_) = request.guard::<Authed>().await else {
-        return auth::catch_unauthorized(request);
+        return Either::A(auth::catch_unauthorized(request));
     };
 
     let message = if status == Status::NotFound {
@@ -117,16 +103,12 @@ async fn catcher(status: Status, request: &Request<'_>) -> Response {
         "Unknown Error Occurred".to_string()
     };
 
-    let message = html::main()
-        .class("grid place-items-center grow")
-        .child(h1().text(message));
-
     let htmx = HxRequest::from_request(request).await.unwrap();
 
     if htmx.0 {
-        Response::partial(message)
+        Either::B(Response::partial(Error { err: message }))
     } else {
-        Response::page(message)
+        Either::B(Response::page(Error { err: message }))
     }
 }
 
@@ -141,6 +123,7 @@ pub fn app(digest: auth::Digest, topics: Topics) -> rocket::Rocket<rocket::Build
                 view,
                 topic_list::index,
                 topic_list::search,
+                study::study_flashcard,
                 study::study,
                 auth::login,
             ],

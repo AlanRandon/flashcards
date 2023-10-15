@@ -1,6 +1,7 @@
-use crate::serve::response::Response;
-use html_builder::prelude::*;
+use super::response::Response;
+use askama::Template;
 use rocket::form::{Form, FromForm};
+use rocket::http::uri::Uri;
 use rocket::http::Status;
 use rocket::outcome::Outcome;
 use rocket::request::{self, FromRequest, Request};
@@ -85,32 +86,14 @@ pub fn login(body: Form<LoginBody<'_>>, digest: &State<Digest>) -> Login {
     }
 }
 
-#[catch(401)]
-pub fn catch_unauthorized(req: &Request) -> Response {
-    let uri = req.uri().path();
+#[derive(Template)]
+#[template(path = "login.html")]
+struct LoginForm<'a> {
+    uri: Uri<'a>,
+}
 
-    Response::Document(
-        Status::Unauthorized,
-        form()
-            .class("flex items-center justify-center gap-4 flex-col h-full grow")
-            .attr("method", "post")
-            .attr("action", "/login")
-            .child(h1().class("text-2xl").text("Flashcards"))
-            .child(
-                input()
-                    .attr("type", "password")
-                    .attr("name", "password")
-                    .class(
-                    "border-slate-500 border-2 rounded-[100vmax] px-4 focus-within:bg-slate-200",
-                ),
-            )
-            .child(
-                input()
-                    .attr("type", "hidden")
-                    .attr("value", uri)
-                    .attr("name", "uri"),
-            )
-            .child(button().attr("type", "submit").class("btn").text("Login"))
-            .into(),
-    )
+#[catch(401)]
+pub fn catch_unauthorized<'a>(req: &'a Request) -> Response<impl Template + 'a> {
+    let uri = (*req.uri()).clone().into();
+    Response::Partial(Status::Unauthorized, LoginForm { uri })
 }

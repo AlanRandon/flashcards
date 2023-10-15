@@ -1,0 +1,22 @@
+<main
+	class="flex grow"
+	hx-trigger="keyup[key==' '] from:body"
+	hx-on::trigger="this.querySelector('.flashcard').click()"
+>
+	<form
+		action="/study"
+		method="GET"
+		class="flex justify-content-center flex-col gap-4 [view-transition-name:study] grow p-4"
+		hx-boost="true"
+		hx-headers='{"Flashcards-Single-Card":true}'
+		hx-target="find div"
+		hx-swap="outerHTML"
+		hx-trigger="submit, keyup[key=='Enter'&&!shiftKey] from:body"
+	>
+		<input type="hidden" name="name" value="{{ name }}" />
+		{% include "study_flashcard.html" %}
+		<div class="flex gap-4 items-center justify-center">
+			<button type="submit" class="btn">Next</button>
+		</div>
+	</form>
+</main>

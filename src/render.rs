@@ -31,13 +31,6 @@ mod katex_scanner {
                 return None;
             }
 
-            println!(
-                "{}\n{}\n{:?}\n",
-                self.input,
-                &self.input[self.position..],
-                self.state
-            );
-
             match self.state {
                 State::Text => {
                     let text = if let Some(position) = input.find(BLOCK_DELIMETER) {
@@ -136,4 +129,12 @@ pub fn markdown(text: &str) -> String {
     let mut result = String::new();
     md::html::push_html(&mut result, parser);
     result
+}
+
+pub mod filters {
+    use std::fmt::Display;
+
+    pub fn markup(text: impl Display) -> askama::Result<String> {
+        Ok(super::markdown(&text.to_string()))
+    }
 }

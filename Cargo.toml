@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# html-builder = { path = "../CLI-apps/crates/html-builder" }
-html-builder = { git = "https://github.com/AlanRandon/CLI-apps" }
 toml = "0.8"
 serde = { version = "1", features = ["derive", "rc"] }
 itertools = "0.11"
@@ -18,8 +16,8 @@ katex = "0.4"
 
 rocket = "0.5.0-rc.3"
 
-shuttle-runtime = "0.26"
-shuttle-static-folder = "0.26"
-shuttle-secrets = "0.26"
-shuttle-rocket = "0.26"
-
+shuttle-runtime = "0.29"
+shuttle-secrets = "0.29"
+shuttle-rocket = "0.29"
+askama = { version = "0.12", features = ["mime", "mime_guess"] }
+# askama_rocket = "0.11.0"

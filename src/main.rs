@@ -4,7 +4,7 @@ use collection::DocumentCollection;
 use itertools::Itertools;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 mod collection;
@@ -55,16 +55,9 @@ fn create_topics(path: impl AsRef<Path>) -> Topics {
 #[shuttle_runtime::main]
 #[allow(clippy::unused_async)]
 async fn main(
-    #[shuttle_static_folder::StaticFolder(folder = "data")] data: PathBuf,
-    #[shuttle_static_folder::StaticFolder(folder = "dist")] dist: PathBuf,
     #[shuttle_secrets::Secrets] secret_store: shuttle_secrets::SecretStore,
 ) -> shuttle_rocket::ShuttleRocket {
-    let topics = create_topics(data);
-
-    unsafe {
-        serve::response::STYLE_CSS = std::fs::read_to_string(dist.join("style.css")).unwrap();
-        serve::response::INIT_JS = std::fs::read_to_string(dist.join("init.js")).unwrap();
-    }
+    let topics = create_topics("data");
 
     let mut hasher = Sha256::new();
     hasher.update(secret_store.get("PASSWORD").unwrap());

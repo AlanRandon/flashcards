@@ -1,6 +1,8 @@
 use crate::Card;
 use itertools::Itertools;
-use std::{fs, io, path::Path, sync::Arc};
+use std::path::Path;
+use std::sync::Arc;
+use std::{fs, io};
 
 mod deserialize;
 

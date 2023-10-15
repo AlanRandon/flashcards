@@ -1,6 +1,7 @@
 use super::Document;
 use crate::Card;
-use serde::{de::Error, Deserialize, Deserializer};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer};
 use std::sync::Arc;
 use toml::Table;
 

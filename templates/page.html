@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="htmx-config" content='{"globalViewTransitions":true}' />
+		{#
+		<!-- prettier-ignore -->
+		#}
+		<style>
+			{{ crate::serve::response::STYLE_CSS }}
+		</style>
+		<title>App</title>
+	</head>
+	<body>
+		<nav
+			hx-boost="true"
+			class="bg-slate-100 shadow rounded-b p-4 sticky top-0 z-10 [view-transition-name:nav] h-fit"
+		>
+			<a
+				href="/"
+				hx-target="main"
+				hx-swap="outerHTML show:window:top"
+				class="font-bold"
+				>Flashcards</a
+			>
+		</nav>
+		{{ template }}
+		{#
+		<!-- prettier-ignore -->
+		#}
+		<script>
+			{{ crate::serve::response::INIT_JS }}
+		</script>
+	</body>
+</html>

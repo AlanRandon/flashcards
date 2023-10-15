@@ -26,6 +26,7 @@ fn main() {
     println!("cargo:rerun-if-changed=tailwind.config.ts");
     println!("cargo:rerun-if-changed=postcss.config.js");
     println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=templates");
 
     // don't run node on shuttle
     if !cfg!(debug_assertions) {

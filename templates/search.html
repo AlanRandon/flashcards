@@ -1,0 +1,22 @@
+<main hx-boost="true" class="grid p-4 gap-4">
+	<form
+		action="/search"
+		method="POST"
+		hx-target="#topic-list"
+		hx-swap="outerHTML show:window:top"
+		hx-trigger="keyup changed delay:300ms from:find input, submit"
+		hx-push-url="false"
+		class="w-full grid place-items-center gap-4 [view-transition-name:search]"
+	>
+		<h2>Search</h2>
+		<div class="flex gap-4 items-center justify-center flex-wrap">
+			<input
+				type="search"
+				name="q"
+				class="border-slate-200 border-2 rounded-[100vmax] focus-within:border-slate-200 transition-colors p-2"
+			/>
+			<noscript><button type="submit" class="btn">Go</button></noscript>
+		</div>
+	</form>
+	{% include "topic_list.html" %}
+</main>

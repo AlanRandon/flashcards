@@ -1,90 +1,108 @@
-use html_builder::prelude::*;
+use askama::{DynTemplate, Template};
 use rocket::http::Status;
-use rocket::response::content::RawHtml;
 use rocket::response::{self, Responder};
 use rocket::Request;
+use std::fmt::Display;
 
-pub static mut STYLE_CSS: String = String::new();
-pub static mut INIT_JS: String = String::new();
+pub const STYLE_CSS: &str = include_str!("../../dist/style.css");
+pub const INIT_JS: &str = include_str!("../../dist/init.js");
 
-pub enum Response {
-    Partial(Status, Node),
-    Page(Status, Node),
-    Document(Status, Node),
+pub enum Response<T> {
+    Partial(Status, T),
+    Page(Status, T),
 }
 
-impl Response {
-    pub fn partial<T>(node: T) -> Self
-    where
-        Node: From<T>,
-    {
-        Self::Partial(Status::Ok, node.into())
+impl<T> Response<T> {
+    pub fn partial(response: T) -> Self {
+        Self::Partial(Status::Ok, response)
     }
 
-    pub fn page<T>(node: T) -> Self
-    where
-        Node: From<T>,
-    {
-        Self::Page(Status::Ok, node.into())
-    }
-
-    #[allow(dead_code)]
-    pub fn document<T>(node: T) -> Self
-    where
-        Node: From<T>,
-    {
-        Self::Document(Status::Ok, node.into())
+    pub fn page(template: T) -> Self {
+        Self::Page(Status::Ok, template)
     }
 }
 
-fn document<I>(items: I) -> RawHtml<String>
-where
-    I: IntoIterator<Item = Node>,
-{
-    RawHtml(
-        html::document::<Node, Node>(
-            [
-                meta()
-                    .attr("name", "htmx-config")
-                    .attr("content", r#"{"globalViewTransitions":true}"#)
-                    .into(),
-                style()
-                    .child(html_builder::raw_text(unsafe { &STYLE_CSS }))
-                    .into(),
-                title().text("App").into(),
-            ],
-            items.into_iter().chain(std::iter::once(Node::Element(
-                script().child(html_builder::raw_text(unsafe { &INIT_JS })),
-            ))),
-        )
-        .to_string(),
-    )
+#[derive(Template)]
+#[template(path = "page.html", escape = "none")]
+pub struct Page<T: Template> {
+    pub template: T,
 }
 
 #[rocket::async_trait]
-impl<'r> Responder<'r, 'static> for Response {
+impl<'r, T> Responder<'r, 'static> for Response<T>
+where
+    T: Template,
+{
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        match self {
+            Response::Partial(status, template) => template.respond(status),
+            Response::Page(status, template) => Page { template }.respond(status),
+        }
+    }
+}
+
+pub trait RocketTemplateExt {
+    fn respond(self, status: Status) -> response::Result<'static>;
+}
+
+impl<T> RocketTemplateExt for T
+where
+    T: DynTemplate,
+{
+    fn respond(self, status: Status) -> response::Result<'static> {
+        let response = self.dyn_render().map_err(|_| Status::InternalServerError)?;
+        rocket::Response::build()
+            .raw_header("Content-Type", self.mime_type())
+            .sized_body(response.len(), std::io::Cursor::new(response))
+            .status(status)
+            .ok()
+    }
+}
+
+pub enum Either<T, U> {
+    A(T),
+    B(U),
+}
+
+impl<T, U> Display for Either<T, U>
+where
+    T: Display,
+    U: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::A(data) => data.fmt(f),
+            Self::B(data) => data.fmt(f),
+        }
+    }
+}
+
+impl<T, U> Template for Either<T, U>
+where
+    T: Template,
+    U: Template,
+{
+    fn render_into(&self, writer: &mut (impl std::fmt::Write + ?Sized)) -> askama::Result<()> {
+        match self {
+            Self::A(template) => template.render_into(writer),
+            Self::B(template) => template.render_into(writer),
+        }
+    }
+
+    const EXTENSION: Option<&'static str> = T::EXTENSION;
+    const SIZE_HINT: usize = T::SIZE_HINT;
+    const MIME_TYPE: &'static str = T::MIME_TYPE;
+}
+
+impl<'r, T, U> Responder<'r, 'static> for Either<T, U>
+where
+    T: Responder<'r, 'static>,
+    U: Responder<'r, 'static>,
+{
     fn respond_to(self, request: &'r Request<'_>) -> response::Result<'static> {
         match self {
-            Self::Partial(status, node) => (status, RawHtml(node.to_string())).respond_to(request),
-            Self::Page(status, node) => (status, {
-                const NAV_CLASSES: &str =
-        "bg-slate-100 shadow rounded-b p-4 sticky top-0 z-10 [view-transition-name:nav] h-fit";
-
-                document([
-                    Node::Element(
-                        nav().class(NAV_CLASSES).attr("hx-boost", true).child(
-                            a().href("/")
-                                .class("font-bold")
-                                .text("Flashcards")
-                                .attr("hx-target", "main")
-                                .attr("hx-swap", "outerHTML show:window:top"),
-                        ),
-                    ),
-                    node,
-                ])
-            })
-                .respond_to(request),
-            Self::Document(status, node) => (status, document([node])).respond_to(request),
+            Self::A(responder) => responder.respond_to(request),
+            Self::B(responder) => responder.respond_to(request),
         }
     }
 }
