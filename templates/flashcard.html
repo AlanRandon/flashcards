@@ -1,8 +1,15 @@
-<div class="flashcard" hx-on:click="this.classList.toggle('flashcard-flipped')">
-	<div class="flashcard-side prose prose-slate" hx-disable>
-		{{ card.term|markup|safe }}
+<label>
+	<input type="checkbox" class="hidden peer" />
+	<div class="flashcard peer-checked:flashcard-flipped">
+		<div class="flashcard-side prose prose-slate" hx-disable="true" data-term>
+			{{ card.term|markup|safe }}
+		</div>
+		<div
+			class="flashcard-side prose prose-slate"
+			hx-disable="true"
+			data-definition
+		>
+			{{ card.definition|markup|safe }}
+		</div>
 	</div>
-	<div class="flashcard-side prose prose-slate" hx-disable>
-		{{ card.definition|markup|safe }}
-	</div>
-</div>
+</label>

@@ -17,6 +17,14 @@
 		{% include "study_flashcard.html" %}
 		<div class="flex gap-4 items-center justify-center">
 			<button type="submit" class="btn">Next</button>
+			{# TODO: make this work #}
+			<button
+				type="button"
+				class="btn"
+				hx-on:click="const e = this.parentElement.parentElement.querySelector('[data-definition]'); wordify(e);"
+			>
+				First Letters
+			</button>
 		</div>
 	</form>
 </main>
