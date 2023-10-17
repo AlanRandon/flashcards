@@ -1,7 +1,7 @@
 <div id="topic-list" class="auto-grid-[25ch] gap-4">
 	{% for topic in topics %}
 	<div
-		class="bg-slate-100 shadow rounded p-4 flex flex-col gap-4 justify-between"
+		class="bg-slate-100 shadow rounded p-4 flex flex-col gap-4 justify-between break-words hyphens-auto"
 	>
 		<h2>{{ topic }}</h2>
 		<div id="topic-{{ topic }}" class="flex gap-4 justify-end">

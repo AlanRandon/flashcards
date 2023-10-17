@@ -17,14 +17,20 @@
 		{% include "study_flashcard.html" %}
 		<div class="flex gap-4 items-center justify-center">
 			<button type="submit" class="btn">Next</button>
-			{# TODO: make this work #}
-			<button
-				type="button"
-				class="btn"
-				hx-on:click="const e = this.parentElement.parentElement.querySelector('[data-definition]'); wordify(e);"
+			<label
+				hx-on:click="const e = this.closest('form').querySelector('.flashcard'); wordify(e);"
+				class="flex gap-2 items-center"
 			>
 				First Letters
-			</button>
+				<div
+					class="p-2 box-content h-[1em] w-[3ch] bg-purple-500 rounded-[100vmax] flex"
+				>
+					<input type="checkbox" class="hidden peer" />
+					<div
+						class="h-[1em] aspect-square bg-purple-50 rounded-full transition-all peer-checked:ml-[100%] peer-checked:translate-x-[-100%]"
+					></div>
+				</div>
+			</label>
 		</div>
 	</form>
 </main>
