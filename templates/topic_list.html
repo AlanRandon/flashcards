@@ -1,25 +1,23 @@
-<div id="topic-list" class="auto-grid-[25ch] gap-4">
-	{% for topic in topics %}
-	<div
-		class="bg-slate-100 shadow rounded p-4 flex flex-col gap-4 justify-between break-words hyphens-auto"
-	>
-		<h2>{{ topic }}</h2>
-		<div id="topic-{{ topic }}" class="flex gap-4 justify-end">
-			<a
-				href="/view?name={{ topic }}"
-				hx-target="main"
-				hx-swap="outerHTML show:window:top"
-				class="btn"
-				>View</a
-			>
-			<a
-				href="/study?name={{ topic }}"
-				hx-target="main"
-				hx-swap="outerHTML show:window:top"
-				class="btn"
-				>Study</a
-			>
-		</div>
+{% for topic in topics %}
+<div class="card flex flex-col gap-4 justify-between break-words hyphens-auto">
+	<h2>{{ topic }}</h2>
+	<div id="topic-{{ topic }}" class="flex gap-4 justify-end">
+		<a
+			href="/view?name={{ topic }}"
+			hx-target="main"
+			hx-swap="outerHTML show:window:top"
+			class="btn flex justify-center gap-2"
+			>View
+			<span class="material-symbols-outlined">list</span>
+		</a>
+		<a
+			href="/study?name={{ topic }}"
+			hx-target="main"
+			hx-swap="outerHTML show:window:top"
+			class="btn flex justify-center gap-4"
+			>Study
+			<span class="material-symbols-outlined">school</span>
+		</a>
 	</div>
-	{% endfor %}
 </div>
+{% endfor %}

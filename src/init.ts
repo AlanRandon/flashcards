@@ -1,28 +1,31 @@
 import "htmx.org";
 
-function wordify(element: HTMLElement) {
-	if (element.dataset.wordified) {
-		return;
+function wordify(element: HTMLElement, wordNumber: number = 0): number {
+	if (element.dataset.wordified || element.classList.contains("katex")) {
+		return wordNumber;
 	}
 
 	element.dataset.wordified = "true";
 
 	for (const child of element.childNodes) {
 		if (child instanceof HTMLElement) {
-			wordify(child);
+			wordNumber == wordify(child, wordNumber);
 		}
 
 		if (child instanceof Text) {
 			const template = document.createElement("template");
 			const html =
 				child.textContent?.replace(
-					/[^\s]+/gm,
-					`<span class="word">$&</span>`,
+					/[^\d\W]+/gm,
+					(match) =>
+						`<span class="word" data-wordified="true" style="--word-number:${wordNumber++}">${match}</span>`,
 				) || "";
 			template.innerHTML = html;
 			child.replaceWith(template.content);
 		}
 	}
+
+	return wordNumber;
 }
 
 window.wordify = wordify;

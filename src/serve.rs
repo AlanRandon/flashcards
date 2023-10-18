@@ -123,7 +123,6 @@ pub fn app(digest: auth::Digest, topics: Topics) -> rocket::Rocket<rocket::Build
                 view,
                 topic_list::index,
                 topic_list::search,
-                study::study_flashcard,
                 study::study,
                 auth::login,
             ],

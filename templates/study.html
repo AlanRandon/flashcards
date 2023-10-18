@@ -8,24 +8,42 @@
 		method="GET"
 		class="flex justify-content-center flex-col gap-4 [view-transition-name:study] grow p-4"
 		hx-boost="true"
-		hx-headers='{"Flashcards-Single-Card":true}'
 		hx-target="find div"
 		hx-swap="outerHTML"
+		hx-select="#flashcard"
 		hx-trigger="submit, keyup[key=='Enter'&&!shiftKey] from:body"
+		hx-on::trigger="this.querySelector('#first-letters').checked = false"
 	>
 		<input type="hidden" name="name" value="{{ name }}" />
-		{% include "study_flashcard.html" %}
+		<div
+			class="flex flex-col gap-4 [view-transition-name:study-card] grow flashcard-stretch"
+			id="flashcard"
+		>
+			{% include "flashcard.html" %}
+			<div class="flex gap-4 items-center justify-center flex-wrap">
+				{% for topic in card.topics %}
+				<a
+					href="/view?name={{ topic }}"
+					hx-target="main"
+					hx-swap="outerHTML show:window:top"
+					class="btn text-xs"
+				>
+					{{ topic }}
+				</a>
+				{% endfor %}
+			</div>
+		</div>
 		<div class="flex gap-4 items-center justify-center">
 			<button type="submit" class="btn">Next</button>
 			<label
-				hx-on:click="const e = this.closest('form').querySelector('.flashcard'); wordify(e);"
+				hx-on:click="const e = this.closest('form').querySelector('.flashcard'); wordify(e); e.classList.toggle('word-show-only-first-letter', this.querySelector('input').checked)"
 				class="flex gap-2 items-center"
 			>
 				First Letters
 				<div
 					class="p-2 box-content h-[1em] w-[3ch] bg-purple-500 rounded-[100vmax] flex"
 				>
-					<input type="checkbox" class="hidden peer" />
+					<input type="checkbox" class="hidden peer" id="first-letters" />
 					<div
 						class="h-[1em] aspect-square bg-purple-50 rounded-full transition-all peer-checked:ml-[100%] peer-checked:translate-x-[-100%]"
 					></div>

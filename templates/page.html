@@ -10,12 +10,16 @@
 		<style>
 			{{ crate::serve::response::STYLE_CSS }}
 		</style>
-		<title>App</title>
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+		/>
+		<title>Flashcards</title>
 	</head>
 	<body>
 		<nav
 			hx-boost="true"
-			class="bg-slate-100 shadow rounded-b p-4 sticky top-0 z-10 [view-transition-name:nav] h-fit"
+			class="bg-slate-50/70 p-4 sticky top-0 z-10 [view-transition-name:nav] h-fit"
 		>
 			<a
 				href="/"
@@ -25,11 +29,11 @@
 				>Flashcards</a
 			>
 		</nav>
-		{{ template }}
-		{#
+		{{ template }} {#
 		<!-- prettier-ignore -->
 		#}
 		<script>
+			// prettier-ignore
 			{{ crate::serve::response::INIT_JS }}
 		</script>
 	</body>
