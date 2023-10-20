@@ -1,9 +1,11 @@
-<main hx-boost="true" class="grid p-4 gap-4">
+<main hx-boost="true" class="grid p-4 gap-4" id="search-page">
 	<form
 		action="/search"
 		method="POST"
 		hx-post="/search"
 		hx-target="#topic-list"
+		hx-select="#topic-list"
+		hx-swap="outerHTML"
 		hx-trigger="keyup changed delay:300ms from:find input, submit"
 		hx-boost="false"
 		class="w-full grid place-items-center place-content-center"
@@ -24,6 +26,30 @@
 		</div>
 	</form>
 	<div id="topic-list" class="auto-grid-[25ch] gap-4">
-		{% include "topic_list.html" %}
+		{% for topic in topics %}
+		<div
+			class="card flex flex-col gap-4 justify-between break-words hyphens-auto"
+		>
+			<h2>{{ topic }}</h2>
+			<div id="topic-{{ topic }}" class="flex gap-4 flex-col">
+				<a
+					href="/view?name={{ topic }}"
+					hx-target="main"
+					hx-swap="outerHTML show:window:top"
+					class="btn flex justify-center gap-2"
+					>View
+					<span class="material-symbols-outlined">list</span>
+				</a>
+				<a
+					href="/study?name={{ topic }}"
+					hx-target="main"
+					hx-swap="outerHTML show:window:top"
+					class="btn flex justify-center gap-4"
+					>Study
+					<span class="material-symbols-outlined">school</span>
+				</a>
+			</div>
+		</div>
+		{% endfor %}
 	</div>
 </main>

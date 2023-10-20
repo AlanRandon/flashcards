@@ -2,22 +2,23 @@
 	class="flex grow"
 	hx-trigger="keyup[key==' '] from:body"
 	hx-on::trigger="this.querySelector('.flashcard').click()"
+	id="study-page"
 >
 	<form
 		action="/study"
 		method="GET"
-		class="flex justify-content-center flex-col gap-4 [view-transition-name:study] grow p-4"
+		class="flex justify-content-center flex-col gap-4 grow p-4"
 		hx-boost="true"
 		hx-target="find div"
 		hx-swap="outerHTML"
-		hx-select="#flashcard"
+		hx-select="#study-flashcard"
 		hx-trigger="submit, keyup[key=='Enter'&&!shiftKey] from:body"
 		hx-on::trigger="this.querySelector('#first-letters').checked = false"
 	>
 		<input type="hidden" name="name" value="{{ name }}" />
 		<div
-			class="flex flex-col gap-4 [view-transition-name:study-card] grow flashcard-stretch"
-			id="flashcard"
+			class="flex flex-col gap-4 grow flashcard-stretch"
+			id="study-flashcard"
 		>
 			{% include "flashcard.html" %}
 			<div class="flex gap-4 items-center justify-center flex-wrap">

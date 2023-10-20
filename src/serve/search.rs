@@ -3,16 +3,9 @@ use crate::serve::response::Response;
 use crate::serve::HxRequest;
 use crate::Topics;
 use askama::Template;
+use itertools::Itertools;
 use rocket::form::Form;
 use rocket::{get, post, FromForm, State};
-
-use super::response::Either;
-
-#[derive(Template)]
-#[template(path = "topic_list.html")]
-struct TopicList<'a> {
-    topics: Vec<&'a str>,
-}
 
 #[derive(Template)]
 #[template(path = "search.html")]
@@ -47,16 +40,21 @@ pub fn search<'a>(
     htmx: HxRequest,
     _auth: Authed,
 ) -> Response<impl Template + 'a> {
-    let topics = topics
-        .0
-        .keys()
-        .map(AsRef::as_ref)
-        .filter(|name| name.contains(query.q))
-        .collect();
+    let words = query.q.split_whitespace().collect_vec();
+
+    let topics = topics.0.keys().map(AsRef::as_ref);
+
+    let topics = if words.is_empty() {
+        topics.collect()
+    } else {
+        topics
+            .filter(|name| words.iter().any(|word| name.contains(word)))
+            .collect()
+    };
 
     if htmx.0 {
-        Response::partial(Either::A(TopicList { topics }))
+        Response::partial(Search { topics })
     } else {
-        Response::page(Either::B(Search { topics }))
+        Response::page(Search { topics })
     }
 }

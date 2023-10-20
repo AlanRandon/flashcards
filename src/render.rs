@@ -134,6 +134,7 @@ pub fn markdown(text: &str) -> String {
 pub mod filters {
     use std::fmt::Display;
 
+    #[allow(clippy::unnecessary_wraps)]
     pub fn markup(text: impl Display) -> askama::Result<String> {
         Ok(super::markdown(&text.to_string()))
     }

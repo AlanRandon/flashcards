@@ -11,8 +11,8 @@ use std::convert::Infallible;
 
 pub mod auth;
 pub mod response;
+mod search;
 mod study;
-mod topic_list;
 
 pub struct HxRequest(bool);
 
@@ -121,8 +121,8 @@ pub fn app(digest: auth::Digest, topics: Topics) -> rocket::Rocket<rocket::Build
             "/",
             routes![
                 view,
-                topic_list::index,
-                topic_list::search,
+                search::index,
+                search::search,
                 study::study,
                 auth::login,
             ],
