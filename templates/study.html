@@ -3,12 +3,12 @@
 	hx-trigger="keyup[key==' '] from:body"
 	hx-on::trigger="this.querySelector('.flashcard').click()"
 	id="study-page"
+	hx-boost="true"
 >
 	<form
 		action="/study"
 		method="GET"
 		class="flex justify-content-center flex-col gap-4 grow p-4"
-		hx-boost="true"
 		hx-target="find div"
 		hx-swap="outerHTML"
 		hx-select="#study-flashcard"
@@ -26,6 +26,7 @@
 				<a
 					href="/view?name={{ topic }}"
 					hx-target="main"
+					hx-select="main"
 					hx-swap="outerHTML show:window:top"
 					class="btn text-xs"
 				>

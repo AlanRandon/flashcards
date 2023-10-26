@@ -40,15 +40,25 @@ pub fn search<'a>(
     htmx: HxRequest,
     _auth: Authed,
 ) -> Response<impl Template + 'a> {
-    let words = query.q.split_whitespace().collect_vec();
-
     let topics = topics.0.keys().map(AsRef::as_ref);
 
-    let topics = if words.is_empty() {
+    let topics = if query.q.is_empty() {
         topics.collect()
     } else {
+        let query = nucleo_matcher::pattern::Pattern::parse(
+            query.q,
+            nucleo_matcher::pattern::CaseMatching::Smart,
+        );
+        let mut matcher = nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT);
+
         topics
-            .filter(|name| words.iter().any(|word| name.contains(word)))
+            .map(|topic| (topic, nucleo_matcher::Utf32String::from(topic)))
+            .sorted_by(|(_, a), (_, b)| {
+                query
+                    .score(b.slice(..), &mut matcher)
+                    .cmp(&query.score(a.slice(..), &mut matcher))
+            })
+            .map(|(topic, _)| topic)
             .collect()
     };
 

@@ -131,20 +131,22 @@
 		view-transition-name: study;
 	}
 
+	#study-flashcard {
+		view-transition-name: study-flashcard;
+	}
+
 	::view-transition-old(view):only-child,
 	::view-transition-old(study):only-child,
-	::view-transition-old(search):only-child {
+	::view-transition-old(search):only-child,
+	::view-transition-old(study-flashcard):only-child {
 		animation: 0.15s ease-in-out both fade-out;
 	}
 
 	::view-transition-new(view):only-child,
 	::view-transition-new(study):only-child,
-	::view-transition-new(search):only-child {
+	::view-transition-new(search):only-child,
+	::view-transition-new(study-flashcard):only-child {
 		animation: 0.15s ease-in-out 0.12s both fade-in;
-	}
-
-	#study-flashcard {
-		view-transition-name: study-flashcard;
 	}
 
 	::view-transition-old(study-flashcard) {

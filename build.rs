@@ -35,7 +35,7 @@ fn main() {
 
     let bin = concat!(env!("CARGO_MANIFEST_DIR"), "/node_modules/.bin");
     let tailwind = format!("{bin}/postcss src/style.css -o dist/style.css");
-    let esbuild = format!("{bin}/esbuild src/init.ts --outfile=dist/init.js --minify --bundle");
+    let esbuild = format!("{bin}/esbuild src/init.ts --outfile=dist/init.js --bundle --minify");
 
     if cfg!(target_os = "windows") {
         Command::new("cmd")

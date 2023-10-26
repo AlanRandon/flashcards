@@ -1,4 +1,7 @@
-import "htmx.org";
+import htmx from "htmx.org";
+
+console.log(`htmx ${htmx.version}`);
+window.htmx = htmx;
 
 function wordify(element: HTMLElement, wordNumber: number = 0): number {
 	if (element.dataset.wordified || element.classList.contains("katex")) {
@@ -33,5 +36,6 @@ window.wordify = wordify;
 declare global {
 	interface Window {
 		wordify: typeof wordify;
+		htmx: typeof htmx;
 	}
 }
