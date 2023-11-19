@@ -1,19 +1,18 @@
-<main
-	class="flex grow"
-	hx-trigger="keyup[key==' '] from:body"
-	hx-on::trigger="this.querySelector('.flashcard').click()"
-	id="study-page"
-	hx-boost="true"
->
+<main class="flex grow" id="study-page">
+	<div
+		hidden
+		hx-trigger="keyup[key==' '] from:body"
+		hx-on::trigger="this.parentElement.querySelector('.flashcard-toggle').checked ^= true"
+	></div>
 	<form
 		action="/study"
 		method="GET"
 		class="flex justify-content-center flex-col gap-4 grow p-4"
 		hx-target="find div"
+		hx-boost="true"
 		hx-swap="outerHTML"
 		hx-select="#study-flashcard"
-		hx-trigger="submit, keyup[key=='Enter'&&!shiftKey] from:body"
-		hx-on::trigger="this.querySelector('#first-letters').checked = false"
+		hx-trigger="keyup[key=='Enter'] from:body"
 	>
 		<input type="hidden" name="name" value="{{ name }}" />
 		<div
