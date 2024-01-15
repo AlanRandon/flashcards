@@ -2,6 +2,7 @@
 
 use collection::DocumentCollection;
 use itertools::Itertools;
+use router::prelude::*;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::Path;
@@ -56,12 +57,14 @@ fn create_topics(path: impl AsRef<Path>) -> Topics {
 #[allow(clippy::unused_async)]
 async fn main(
     #[shuttle_secrets::Secrets] secret_store: shuttle_secrets::SecretStore,
-) -> shuttle_rocket::ShuttleRocket {
+) -> Result<impl shuttle_runtime::Service, shuttle_runtime::Error> {
     let topics = create_topics("data");
+
+    // hyper
 
     let mut hasher = Sha256::new();
     hasher.update(secret_store.get("PASSWORD").unwrap());
     let digest = hasher.finalize();
 
-    Ok(serve::app(digest, topics).into())
+    Ok(serve::App { digest, topics })
 }

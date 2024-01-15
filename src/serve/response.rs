@@ -1,26 +1,10 @@
-use askama::{DynTemplate, Template};
-use rocket::http::Status;
-use rocket::response::{self, Responder};
-use rocket::Request;
+use crate::serve::Response;
+use askama::Template;
+use http::StatusCode;
 use std::fmt::Display;
 
 pub const STYLE_CSS: &str = include_str!("../../dist/style.css");
 pub const INIT_JS: &str = include_str!("../../dist/init.js");
-
-pub enum Response<T> {
-    Partial(Status, T),
-    Page(Status, T),
-}
-
-impl<T> Response<T> {
-    pub fn partial(response: T) -> Self {
-        Self::Partial(Status::Ok, response)
-    }
-
-    pub fn page(template: T) -> Self {
-        Self::Page(Status::Ok, template)
-    }
-}
 
 #[derive(Template)]
 #[template(path = "page.html", escape = "none")]
@@ -28,34 +12,32 @@ pub struct Page<T: Template> {
     pub template: T,
 }
 
-#[rocket::async_trait]
-impl<'r, T> Responder<'r, 'static> for Response<T>
-where
-    T: Template,
-{
-    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
-        match self {
-            Response::Partial(status, template) => template.respond(status),
-            Response::Page(status, template) => Page { template }.respond(status),
-        }
-    }
+pub fn partial(template: impl Template, status: StatusCode) -> Response {
+    use bytes::Bytes;
+    use http_body_util::Full;
+
+    let Ok(body) = template.render() else {
+        return http::Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Full::new(Bytes::from("Unknown error")))
+            .unwrap();
+    };
+
+    http::Response::builder()
+        .status(status)
+        .body(http_body_util::Full::new(Bytes::from(body)))
+        .unwrap()
 }
 
-pub trait RocketTemplateExt {
-    fn respond(self, status: Status) -> response::Result<'static>;
+pub fn page(template: impl Template, status: StatusCode) -> Response {
+    partial(Page { template }, status)
 }
 
-impl<T> RocketTemplateExt for T
-where
-    T: DynTemplate,
-{
-    fn respond(self, status: Status) -> response::Result<'static> {
-        let response = self.dyn_render().map_err(|_| Status::InternalServerError)?;
-        rocket::Response::build()
-            .raw_header("Content-Type", self.mime_type())
-            .sized_body(response.len(), std::io::Cursor::new(response))
-            .status(status)
-            .ok()
+pub fn partial_if(template: impl Template, status: StatusCode, condition: bool) -> Response {
+    if condition {
+        partial(template, status)
+    } else {
+        page(template, status)
     }
 }
 
@@ -92,17 +74,4 @@ where
     const EXTENSION: Option<&'static str> = T::EXTENSION;
     const SIZE_HINT: usize = T::SIZE_HINT;
     const MIME_TYPE: &'static str = T::MIME_TYPE;
-}
-
-impl<'r, T, U> Responder<'r, 'static> for Either<T, U>
-where
-    T: Responder<'r, 'static>,
-    U: Responder<'r, 'static>,
-{
-    fn respond_to(self, request: &'r Request<'_>) -> response::Result<'static> {
-        match self {
-            Self::A(responder) => responder.respond_to(request),
-            Self::B(responder) => responder.respond_to(request),
-        }
-    }
 }

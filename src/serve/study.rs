@@ -1,13 +1,9 @@
 use crate::render::filters;
 use crate::serve::auth::Authed;
-use crate::serve::response::Response;
-use crate::serve::{HxRequest, TopicQuery};
+use crate::serve::TopicQuery;
 use crate::{Card, Topics};
 use askama::Template;
 use rand::prelude::*;
-use rocket::http::Status;
-use rocket::response::{self, Responder};
-use rocket::{get, Request, State};
 
 use super::response::Either;
 
