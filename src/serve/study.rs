@@ -1,56 +1,42 @@
+use super::{response, Error, Request, RequestExt, Response};
 use crate::render::filters;
-use crate::serve::auth::Authed;
 use crate::serve::TopicQuery;
 use crate::{Card, Topics};
 use askama::Template;
+use http::StatusCode;
 use rand::prelude::*;
+use router::prelude::*;
 
-use super::response::Either;
-
-pub struct NoCache<T>(T);
-
-impl<'r, T> Responder<'r, 'static> for NoCache<T>
-where
-    T: Responder<'r, 'static>,
-{
-    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
-        response::Response::build_from(self.0.respond_to(req)?)
-            .raw_header("Cache-Control", "no-cache")
-            .ok()
-    }
-}
-
-#[derive(Template)]
-#[template(
-    source = r#"<main class="grid place-items-center grow"><p class="grow">Card not found</p></main>"#,
-    ext = "html"
-)]
-struct CardNotFound;
-
-#[get("/study?<query..>")]
-pub fn study<'a>(
-    query: TopicQuery<'a>,
-    state: &'a State<Topics>,
-    htmx: HxRequest,
-    _auth: Authed,
-) -> NoCache<Response<impl Template + 'a>> {
-    let Some(card) = get_random_card(&query, state) else {
-        return if htmx.0 {
-            NoCache(Response::Partial(Status::NotFound, Either::A(CardNotFound)))
-        } else {
-            NoCache(Response::Page(Status::NotFound, Either::A(CardNotFound)))
-        };
+#[get("study")]
+pub fn study(request: &Request<'req>) -> Response {
+    let Ok(query) = request.query::<TopicQuery>() else {
+        return response::no_cache(response::partial_if(
+            &Error {
+                err: "Invalid query",
+            },
+            StatusCode::BAD_REQUEST,
+            request.is_htmx(),
+        ));
     };
 
-    let body = Either::B(Study {
-        card,
-        name: query.name,
-    });
-    if htmx.0 {
-        NoCache(Response::partial(body))
-    } else {
-        NoCache(Response::page(body))
-    }
+    let Some(card) = get_random_card(&query, request.context.topics) else {
+        return response::no_cache(response::partial_if(
+            &Error {
+                err: "Card not found",
+            },
+            StatusCode::NOT_FOUND,
+            request.is_htmx(),
+        ));
+    };
+
+    response::no_cache(response::partial_if(
+        &Study {
+            card,
+            name: query.name,
+        },
+        StatusCode::NOT_FOUND,
+        request.is_htmx(),
+    ))
 }
 
 fn get_random_card<'a>(query: &TopicQuery<'_>, state: &'a Topics) -> Option<&'a Card> {

@@ -1,6 +1,5 @@
 // TODO: files
 // TODO: auth
-// TODO: study
 
 use crate::render::filters;
 use crate::{Card, Topics};
@@ -16,8 +15,14 @@ mod response;
 mod search;
 mod study;
 
-pub type Request<'req> = router::Request<'req, hyper::body::Bytes, &'req Topics>;
+pub type Request<'req> = router::Request<'req, hyper::body::Bytes, Context<'req>>;
 pub type Response = http::Response<http_body_util::Full<bytes::Bytes>>;
+
+pub struct Context<'req> {
+    topics: &'req Topics,
+    password: Arc<str>,
+    key: Arc<cookie::Key>,
+}
 
 trait RequestExt<'req> {
     fn is_htmx(&self) -> bool;
@@ -72,7 +77,7 @@ struct View<'a> {
 fn view(request: &Request<'req>) -> Response {
     let Ok(query) = request.query::<TopicQuery>() else {
         return response::partial_if(
-            Error {
+            &Error {
                 err: "Invalid Query Parameters",
             },
             StatusCode::BAD_REQUEST,
@@ -80,9 +85,9 @@ fn view(request: &Request<'req>) -> Response {
         );
     };
 
-    let Some(cards) = request.context.get(query.name) else {
+    let Some(cards) = request.context.topics.get(query.name) else {
         return response::partial_if(
-            Error {
+            &Error {
                 err: "Set Not Found",
             },
             StatusCode::NOT_FOUND,
@@ -91,7 +96,7 @@ fn view(request: &Request<'req>) -> Response {
     };
 
     response::partial_if(
-        View {
+        &View {
             name: query.name,
             cards: cards.iter().map(AsRef::as_ref).collect(),
         },
@@ -100,34 +105,10 @@ fn view(request: &Request<'req>) -> Response {
     )
 }
 
-// #[catch(default)]
-// async fn catcher<'a>(
-//     status: Status,
-//     request: &'a Request<'_>,
-// ) -> Either<Response<impl Template + 'a>, Response<impl Template>> {
-//     let Outcome::Success(_) = request.guard::<Authed>().await else {
-//         return Either::A(auth::catch_unauthorized(request));
-//     };
-
-//     let message = if status == Status::NotFound {
-//         format!("Page {} not found", request.uri())
-//     } else {src
-//         "Unknown Error Occurred".to_string()
-//     };
-
-//     let htmx = HxRequest::from_request(request).await.unwrap();
-
-//     if htmx.0 {
-//         Either::B(Response::partial(Error { err: message }))
-//     } else {
-//         Either::B(Response::page(Error { err: message }))
-//     }
-// }
-
-router![async Router => view, search::index, search::search];
+router![async Router => view, search::index, search::search, study::study];
 
 pub struct App {
-    pub digest: auth::Digest,
+    pub password: String,
     pub topics: Topics,
 }
 
@@ -140,8 +121,10 @@ impl App {
 
         let listener = TcpListener::bind(addr).await?;
 
-        let Self { digest, topics } = self;
+        let Self { password, topics } = self;
         let topics = Arc::new(topics);
+        let key = Arc::new(cookie::Key::generate());
+        let password = Arc::<str>::from(password.into_boxed_str());
 
         let listen = tokio::task::spawn(async move {
             loop {
@@ -153,12 +136,16 @@ impl App {
 
                 tokio::task::spawn({
                     let topics = Arc::clone(&topics);
+                    let key = Arc::clone(&key);
+                    let password = Arc::clone(&password);
                     async move {
                         if let Err(err) = auto::Builder::new(TokioExecutor::new())
                             .serve_connection(
                                 io,
                                 service_fn(move |request: http::Request<hyper::body::Incoming>| {
                                     let topics = Arc::clone(&topics);
+                                    let key = Arc::clone(&key);
+                                    let password = Arc::clone(&password);
                                     async move {
                                         let (parts, body) = request.into_parts();
                                         let request = http::Request::from_parts(
@@ -167,15 +154,32 @@ impl App {
                                         );
 
                                         let topics = topics.as_ref();
-                                        let request =
-                                            Request::from_http_with_context(&request, &topics);
 
-                                        dbg!(&request.segments);
+                                        let context = Context {
+                                            topics,
+                                            password,
+                                            key,
+                                        };
+
+                                        let request =
+                                            Request::from_http_with_context(&request, &context);
 
                                         Ok::<_, hyper::Error>(
-                                            Router::route(&request)
-                                                .await
-                                                .unwrap_or_else(|| todo!("{:?}", request.request)),
+                                            auth::login(&request, move |request| async move {
+                                                Router::route(request).await.unwrap_or_else(|| {
+                                                    response::partial_if(
+                                                        &Error {
+                                                            err: &format!(
+                                                                "Not found: {}",
+                                                                request.request.uri()
+                                                            ),
+                                                        },
+                                                        StatusCode::NOT_FOUND,
+                                                        request.is_htmx(),
+                                                    )
+                                                })
+                                            })
+                                            .await,
                                         )
                                     }
                                 }),

@@ -2,8 +2,6 @@
 
 use collection::DocumentCollection;
 use itertools::Itertools;
-use router::prelude::*;
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -62,9 +60,8 @@ async fn main(
 
     // hyper
 
-    let mut hasher = Sha256::new();
-    hasher.update(secret_store.get("PASSWORD").unwrap());
-    let digest = hasher.finalize();
+    let key = cookie::Key::generate();
+    let password = secret_store.get("PASSWORD").unwrap();
 
-    Ok(serve::App { digest, topics })
+    Ok(serve::App { password, topics })
 }

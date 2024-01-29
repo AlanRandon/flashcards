@@ -1,92 +1,94 @@
-use super::Response;
+use super::{response, Request, RequestExt, Response};
 use askama::Template;
-use sha2::digest::generic_array::GenericArray;
-use sha2::digest::OutputSizeUser;
-use sha2::{Digest as _, Sha256};
+use http::{Method, StatusCode, Uri};
+use serde::Deserialize;
+use std::future::Future;
 
-pub type Digest = GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>;
-
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct LoginBody<'r> {
     password: &'r str,
-    uri: &'r str,
+    #[serde(with = "http_serde::uri")]
+    location: Uri,
 }
 
-pub struct Authed;
+pub async fn login<'a, F: Future<Output = Response>>(
+    request: &'a Request<'a>,
+    on_authed: impl FnOnce(&'a Request<'a>) -> F,
+) -> Response {
+    let cookie = request
+        .request
+        .headers()
+        .get("Cookie")
+        .and_then(|header| header.to_str().ok())
+        .map(cookie::Cookie::split_parse_encoded)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .find(|cookie| cookie.name() == "auth");
 
-// #[rocket::async_trait]
-// impl<'r> FromRequest<'r> for Authed {
-//     type Error = ();
+    let cookie = cookie.as_ref().map(cookie::Cookie::value);
 
-//     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
-//         let Outcome::Success(digest) = request.guard::<&State<Digest>>().await else {
-//             return Outcome::Failure((Status::Unauthorized, ()));
-//         };
+    if request.segments == ["login"] {
+        if request.request.method() == Method::POST {
+            if let Ok(LoginBody { password, location }) = request.form().await {
+                if password == request.context.password.as_ref() {
+                    return http::Response::builder()
+                        .status(StatusCode::SEE_OTHER)
+                        .header("Set-Cookie", format!("auth={password}; Http-Only; Secure;"))
+                        .header("Location", location.to_string())
+                        .body(http_body_util::Full::default())
+                        .unwrap();
+                };
+            }
+        }
 
-//         let Some(cookie) = request.cookies().get("auth") else {
-//             return Outcome::Failure((Status::Unauthorized, ()));
-//         };
+        let location = match request.query::<LoginFormParams>() {
+            Ok(query) => query.location,
+            Err(_) => Uri::from_static("/"),
+        };
 
-//         let mut hasher = Sha256::new();
-//         hasher.update(cookie.value());
-//         let user_digest = hasher.finalize();
+        if Some(request.context.password.as_ref()) == cookie {
+            return http::Response::builder()
+                .status(StatusCode::SEE_OTHER)
+                .header("Location", location.to_string())
+                .body(http_body_util::Full::default())
+                .unwrap();
+        }
 
-//         if user_digest == **digest {
-//             Outcome::Success(Self)
-//         } else {
-//             return Outcome::Failure((Status::Unauthorized, ()));
-//         }
-//     }
-// }
+        let mut response = response::partial(
+            &LoginForm {
+                location: &location,
+            },
+            StatusCode::UNAUTHORIZED,
+        );
+        response
+            .headers_mut()
+            .append("HX-Refresh", http::HeaderValue::from_static("true"));
+        return response;
+    }
 
-// #[derive(Debug)]
-// pub enum Login {
-//     Success { password: String, location: String },
-//     Failure,
-// }
+    if Some(request.context.password.as_ref()) == cookie {
+        return on_authed(request).await;
+    }
 
-// #[rocket::async_trait]
-// impl<'r> Responder<'r, 'static> for Login {
-//     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
-//         match self {
-//             Self::Success { password, location } => {
-//                 let response = rocket::Response::build()
-//                     .status(Status::MovedPermanently)
-//                     .raw_header("Set-Cookie", format!("auth={password}; Http-Only; Secure"))
-//                     .raw_header("Location", location)
-//                     .finalize();
+    http::Response::builder()
+        .status(StatusCode::SEE_OTHER)
+        .header(
+            "Location",
+            format!("login?location={}", request.request.uri()),
+        )
+        .body(http_body_util::Full::default())
+        .unwrap()
+}
 
-//                 Ok(response)
-//             }
-//             Self::Failure => Err(Status::Unauthorized),
-//         }
-//     }
-// }
+#[derive(Template)]
+#[template(path = "login.html")]
+struct LoginForm<'a> {
+    location: &'a Uri,
+}
 
-// #[post("/login", data = "<body>")]
-// pub fn login(body: Form<LoginBody<'_>>, digest: &State<Digest>) -> Login {
-//     let mut hasher = Sha256::new();
-//     hasher.update(body.password);
-//     let user_digest = hasher.finalize();
-
-//     if user_digest == **digest {
-//         Login::Success {
-//             password: body.password.to_string(),
-//             location: body.uri.to_string(),
-//         }
-//     } else {
-//         Login::Failure
-//     }
-// }
-
-// #[derive(Template)]
-// #[template(path = "login.html")]
-// struct LoginForm<'a> {
-//     uri: Uri<'a>,
-// }
-
-// #[catch(401)]
-// pub fn catch_unauthorized<'a>(req: &'a Request) -> Response<impl Template + 'a> {
-//     let uri = (*req.uri()).clone().into();
-//     Response::Partial(Status::Unauthorized, LoginForm { uri })
-// }
+#[derive(Deserialize)]
+struct LoginFormParams {
+    #[serde(with = "http_serde::uri")]
+    location: Uri,
+}

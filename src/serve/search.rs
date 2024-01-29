@@ -11,10 +11,10 @@ struct Search<'a> {
     topics: Vec<&'a str>,
 }
 
-#[get("")]
+#[get]
 pub fn index(request: &Request<'req>) -> Response {
-    let topics = request.context.0.keys().map(AsRef::as_ref).collect();
-    response::partial_if(Search { topics }, StatusCode::OK, request.is_htmx())
+    let topics = request.context.topics.0.keys().map(AsRef::as_ref).collect();
+    response::partial_if(&Search { topics }, StatusCode::OK, request.is_htmx())
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,11 +24,11 @@ pub struct Query<'a> {
 
 #[post("search")]
 pub async fn search(request: &Request<'req>) -> Response {
-    let topics = request.context.0.keys().map(AsRef::as_ref);
+    let topics = request.context.topics.0.keys().map(AsRef::as_ref);
 
     let Ok(body) = request.form::<Query>().await else {
         return response::partial_if(
-            Error {
+            &Error {
                 err: "Invalid form body",
             },
             StatusCode::BAD_REQUEST,
@@ -57,5 +57,5 @@ pub async fn search(request: &Request<'req>) -> Response {
             .collect()
     };
 
-    response::partial_if(Search { topics }, StatusCode::OK, request.is_htmx())
+    response::partial_if(&Search { topics }, StatusCode::OK, request.is_htmx())
 }
