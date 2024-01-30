@@ -32,16 +32,16 @@ pub fn study(request: &Request<'req>) -> Response {
     response::no_cache(response::partial_if(
         &Study {
             card,
-            name: query.name,
+            name: &query.name,
         },
-        StatusCode::NOT_FOUND,
+        StatusCode::OK,
         request.is_htmx(),
     ))
 }
 
 fn get_random_card<'a>(query: &TopicQuery<'_>, state: &'a Topics) -> Option<&'a Card> {
     let mut rng = thread_rng();
-    state.get(query.name)?.choose(&mut rng).map(AsRef::as_ref)
+    state.get(&query.name)?.choose(&mut rng).map(AsRef::as_ref)
 }
 
 #[derive(Template)]

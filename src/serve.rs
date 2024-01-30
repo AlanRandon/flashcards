@@ -1,6 +1,3 @@
-// TODO: files
-// TODO: auth
-
 use crate::render::filters;
 use crate::{Card, Topics};
 use askama::Template;
@@ -8,6 +5,7 @@ use http::StatusCode;
 use http_body_util::BodyExt;
 use router::prelude::*;
 use serde::Deserialize;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub mod auth;
@@ -21,13 +19,12 @@ pub type Response = http::Response<http_body_util::Full<bytes::Bytes>>;
 pub struct Context<'req> {
     topics: &'req Topics,
     password: Arc<str>,
-    key: Arc<cookie::Key>,
 }
 
 trait RequestExt<'req> {
     fn is_htmx(&self) -> bool;
-    fn query<T: Deserialize<'req>>(&self) -> Result<T, serde_querystring::Error>;
-    async fn form<T: Deserialize<'req>>(&self) -> Result<T, serde_querystring::Error>;
+    fn query<T: Deserialize<'req>>(&self) -> Result<T, serde_urlencoded::de::Error>;
+    async fn form<T: Deserialize<'req>>(&self) -> Result<T, serde_urlencoded::de::Error>;
 }
 
 impl<'req> RequestExt<'req> for Request<'req> {
@@ -35,19 +32,13 @@ impl<'req> RequestExt<'req> for Request<'req> {
         self.request.headers().contains_key("Hx-Request")
     }
 
-    fn query<T: Deserialize<'req>>(&self) -> Result<T, serde_querystring::Error> {
-        serde_querystring::from_str(
-            self.request.uri().query().unwrap_or(""),
-            serde_querystring::ParseMode::UrlEncoded,
-        )
+    fn query<T: Deserialize<'req>>(&self) -> Result<T, serde_urlencoded::de::Error> {
+        let query = self.request.uri().query().unwrap_or("");
+        serde_urlencoded::from_str(query)
     }
 
-    async fn form<T: Deserialize<'req>>(&self) -> Result<T, serde_querystring::Error> {
-        let body = serde_querystring::from_bytes::<T>(
-            self.request.body(),
-            serde_querystring::ParseMode::UrlEncoded,
-        )?;
-
+    async fn form<T: Deserialize<'req>>(&self) -> Result<T, serde_urlencoded::de::Error> {
+        let body = serde_urlencoded::from_bytes(self.request.body())?;
         Ok(body)
     }
 }
@@ -62,8 +53,8 @@ struct Error<'a> {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TopicQuery<'a> {
-    name: &'a str,
+pub struct TopicQuery<'r> {
+    name: Cow<'r, str>,
 }
 
 #[derive(Template)]
@@ -85,7 +76,7 @@ fn view(request: &Request<'req>) -> Response {
         );
     };
 
-    let Some(cards) = request.context.topics.get(query.name) else {
+    let Some(cards) = request.context.topics.get(&query.name) else {
         return response::partial_if(
             &Error {
                 err: "Set Not Found",
@@ -97,7 +88,7 @@ fn view(request: &Request<'req>) -> Response {
 
     response::partial_if(
         &View {
-            name: query.name,
+            name: &query.name,
             cards: cards.iter().map(AsRef::as_ref).collect(),
         },
         StatusCode::OK,
@@ -113,6 +104,7 @@ pub struct App {
 }
 
 impl App {
+    #[allow(clippy::too_many_lines)]
     async fn run(self, addr: std::net::SocketAddr) -> Result<(), shuttle_runtime::Error> {
         use hyper::service::service_fn;
         use hyper_util::rt::{TokioExecutor, TokioIo};
@@ -123,8 +115,9 @@ impl App {
 
         let Self { password, topics } = self;
         let topics = Arc::new(topics);
-        let key = Arc::new(cookie::Key::generate());
         let password = Arc::<str>::from(password.into_boxed_str());
+        let dist_files =
+            hyper_staticfile::Static::new(concat!(env!("CARGO_MANIFEST_DIR"), "/dist"));
 
         let listen = tokio::task::spawn(async move {
             loop {
@@ -136,37 +129,63 @@ impl App {
 
                 tokio::task::spawn({
                     let topics = Arc::clone(&topics);
-                    let key = Arc::clone(&key);
                     let password = Arc::clone(&password);
+                    let dist_files = dist_files.clone();
                     async move {
-                        if let Err(err) = auto::Builder::new(TokioExecutor::new())
-                            .serve_connection(
-                                io,
-                                service_fn(move |request: http::Request<hyper::body::Incoming>| {
-                                    let topics = Arc::clone(&topics);
-                                    let key = Arc::clone(&key);
-                                    let password = Arc::clone(&password);
-                                    async move {
-                                        let (parts, body) = request.into_parts();
-                                        let request = http::Request::from_parts(
-                                            parts,
-                                            body.collect().await?.to_bytes(),
-                                        );
+                        let service =
+                            service_fn(move |request: http::Request<hyper::body::Incoming>| {
+                                let topics = Arc::clone(&topics);
+                                let password = Arc::clone(&password);
+                                let dist_files = dist_files.clone();
+                                async move {
+                                    let (parts, body) = request.into_parts();
+                                    let request = http::Request::from_parts(
+                                        parts,
+                                        body.collect().await?.to_bytes(),
+                                    );
 
-                                        let topics = topics.as_ref();
+                                    let topics = topics.as_ref();
 
-                                        let context = Context {
-                                            topics,
-                                            password,
-                                            key,
-                                        };
+                                    let context = Context { topics, password };
 
-                                        let request =
-                                            Request::from_http_with_context(&request, &context);
+                                    let request =
+                                        Request::from_http_with_context(&request, &context);
 
-                                        Ok::<_, hyper::Error>(
-                                            auth::login(&request, move |request| async move {
-                                                Router::route(request).await.unwrap_or_else(|| {
+                                    Ok::<_, hyper::Error>(
+                                        auth::login(&request, move |request| async move {
+                                            if let Some(response) = Router::route(request).await {
+                                                return response;
+                                            }
+
+                                            let response = match dist_files
+                                                .serve({
+                                                    let (parts, _) =
+                                                        request.request.clone().into_parts();
+                                                    http::Request::from_parts(parts, ())
+                                                })
+                                                .await
+                                            {
+                                                Ok(response) => {
+                                                    let (parts, body) = response.into_parts();
+                                                    let body = body.collect().await;
+                                                    body.map(|body| {
+                                                        http::Response::from_parts(
+                                                            parts,
+                                                            body.to_bytes().into(),
+                                                        )
+                                                    })
+                                                }
+                                                Err(err) => Err(err),
+                                            };
+
+                                            match response {
+                                                Ok(response) => response,
+                                                Err(err)
+                                                    if matches!(
+                                                        err.kind(),
+                                                        std::io::ErrorKind::NotFound
+                                                    ) =>
+                                                {
                                                     response::partial_if(
                                                         &Error {
                                                             err: &format!(
@@ -177,13 +196,23 @@ impl App {
                                                         StatusCode::NOT_FOUND,
                                                         request.is_htmx(),
                                                     )
-                                                })
-                                            })
-                                            .await,
-                                        )
-                                    }
-                                }),
-                            )
+                                                }
+                                                Err(_) => response::partial_if(
+                                                    &Error {
+                                                        err: "Unknown Error",
+                                                    },
+                                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                                    request.is_htmx(),
+                                                ),
+                                            }
+                                        })
+                                        .await,
+                                    )
+                                }
+                            });
+
+                        if let Err(err) = auto::Builder::new(TokioExecutor::new())
+                            .serve_connection(io, service)
                             .await
                         {
                             println!("Error serving connection: {err:?}");
@@ -216,24 +245,3 @@ impl shuttle_runtime::Service for App {
         Box::pin(self.run(addr))
     }
 }
-
-// pub fn app(digest: auth::Digest, topics: Topics) -> rocket::Rocket<rocket::Build> {
-//     const STATIC_FILES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/dist/static");
-//     let static_files = rocket::fs::FileServer::from(STATIC_FILES);
-
-//     rocket::build()
-//         .mount(
-//             "/",
-//             routes![
-//                 view,
-//                 search::index,
-//                 search::search,
-//                 study::study,
-//                 auth::login,
-//             ],
-//         )
-//         .mount("/static", static_files)
-//         .register("/", catchers![auth::catch_unauthorized, catcher])
-//         .manage(topics)
-//         .manage(digest)
-// }

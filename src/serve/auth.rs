@@ -1,14 +1,14 @@
 use super::{response, Request, RequestExt, Response};
 use askama::Template;
-use http::{Method, StatusCode, Uri};
+use http::{Method, StatusCode};
 use serde::Deserialize;
+use std::borrow::Cow;
 use std::future::Future;
 
 #[derive(Debug, Deserialize)]
 pub struct LoginBody<'r> {
-    password: &'r str,
-    #[serde(with = "http_serde::uri")]
-    location: Uri,
+    password: Cow<'r, str>,
+    location: Cow<'r, str>,
 }
 
 pub async fn login<'a, F: Future<Output = Response>>(
@@ -44,7 +44,7 @@ pub async fn login<'a, F: Future<Output = Response>>(
 
         let location = match request.query::<LoginFormParams>() {
             Ok(query) => query.location,
-            Err(_) => Uri::from_static("/"),
+            Err(_) => "/".into(),
         };
 
         if Some(request.context.password.as_ref()) == cookie {
@@ -55,12 +55,7 @@ pub async fn login<'a, F: Future<Output = Response>>(
                 .unwrap();
         }
 
-        let mut response = response::partial(
-            &LoginForm {
-                location: &location,
-            },
-            StatusCode::UNAUTHORIZED,
-        );
+        let mut response = response::partial(&LoginForm { location }, StatusCode::UNAUTHORIZED);
         response
             .headers_mut()
             .append("HX-Refresh", http::HeaderValue::from_static("true"));
@@ -84,11 +79,10 @@ pub async fn login<'a, F: Future<Output = Response>>(
 #[derive(Template)]
 #[template(path = "login.html")]
 struct LoginForm<'a> {
-    location: &'a Uri,
+    location: Cow<'a, str>,
 }
 
-#[derive(Deserialize)]
-struct LoginFormParams {
-    #[serde(with = "http_serde::uri")]
-    location: Uri,
+#[derive(Deserialize, Debug)]
+struct LoginFormParams<'r> {
+    location: Cow<'r, str>,
 }

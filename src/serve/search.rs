@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::{response, Error, Request, RequestExt, Response};
 use askama::Template;
 use http::StatusCode;
@@ -18,8 +20,8 @@ pub fn index(request: &Request<'req>) -> Response {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Query<'a> {
-    q: &'a str,
+pub struct Query<'r> {
+    q: Cow<'r, str>,
 }
 
 #[post("search")]
@@ -40,7 +42,7 @@ pub async fn search(request: &Request<'req>) -> Response {
         topics.collect()
     } else {
         let query = nucleo_matcher::pattern::Pattern::parse(
-            body.q,
+            &body.q,
             nucleo_matcher::pattern::CaseMatching::Smart,
             nucleo_matcher::pattern::Normalization::Smart,
         );

@@ -57,11 +57,6 @@ async fn main(
     #[shuttle_secrets::Secrets] secret_store: shuttle_secrets::SecretStore,
 ) -> Result<impl shuttle_runtime::Service, shuttle_runtime::Error> {
     let topics = create_topics("data");
-
-    // hyper
-
-    let key = cookie::Key::generate();
     let password = secret_store.get("PASSWORD").unwrap();
-
     Ok(serve::App { password, topics })
 }
