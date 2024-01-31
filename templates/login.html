@@ -1,23 +1,28 @@
 <!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      {{ crate::serve::response::STYLE_CSS }}
+    </style>
+    <title>Flashcards</title>
+  </head>
 
-<head>
-	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<style>
-		{{ crate::serve::response::STYLE_CSS }}
-	</style>
-	<title>Flashcards</title>
-</head>
-
-<body>
-	<form action="/login" method="POST" class="flex items-center justify-center gap-4 flex-col h-full grow">
-		<h1 class="text-2xl">Flashcards</h1>
-		<input type="password" name="password"
-			class="border-slate-500 border-2 rounded-[100vmax] px-4 focus-within:bg-slate-200" />
-		<input type="hidden" name="location" value="{{ location }}" />
-		<button type="submit" class="btn">Login</button>
-	</form>
-</body>
-
+  <body>
+    <form
+      action="/login"
+      method="POST"
+      class="flex items-center justify-center gap-4 flex-col h-full grow"
+    >
+      <h1 class="text-2xl">Flashcards</h1>
+      <input
+        type="password"
+        name="password"
+        class="border-slate-500 border-2 rounded-[100vmax] px-4 focus-within:bg-slate-200"
+      />
+      <input type="hidden" name="location" value="{{ location }}" />
+      <button type="submit" class="btn">Login</button>
+    </form>
+  </body>
 </html>
