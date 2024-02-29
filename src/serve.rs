@@ -1,5 +1,4 @@
-use crate::render::filters;
-use crate::{Card, Topics};
+use crate::{RenderedCard, Topics};
 use askama::Template;
 use http::StatusCode;
 use http_body_util::BodyExt;
@@ -60,7 +59,7 @@ pub struct TopicQuery<'r> {
 #[derive(Template)]
 #[template(path = "view.html")]
 struct View<'a> {
-    cards: Vec<&'a Card>,
+    cards: Vec<&'a RenderedCard>,
     name: &'a str,
 }
 

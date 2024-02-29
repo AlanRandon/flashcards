@@ -1,7 +1,6 @@
 use super::{response, Error, Request, RequestExt, Response};
-use crate::render::filters;
 use crate::serve::TopicQuery;
-use crate::{Card, Topics};
+use crate::{RenderedCard, Topics};
 use askama::Template;
 use http::StatusCode;
 use rand::prelude::*;
@@ -39,7 +38,7 @@ pub fn study(request: &Request<'req>) -> Response {
     ))
 }
 
-fn get_random_card<'a>(query: &TopicQuery<'_>, state: &'a Topics) -> Option<&'a Card> {
+fn get_random_card<'a>(query: &TopicQuery<'_>, state: &'a Topics) -> Option<&'a RenderedCard> {
     let mut rng = thread_rng();
     state.get(&query.name)?.choose(&mut rng).map(AsRef::as_ref)
 }
@@ -47,6 +46,6 @@ fn get_random_card<'a>(query: &TopicQuery<'_>, state: &'a Topics) -> Option<&'a 
 #[derive(Template)]
 #[template(path = "study.html")]
 struct Study<'a> {
-    card: &'a Card,
+    card: &'a RenderedCard,
     name: &'a str,
 }

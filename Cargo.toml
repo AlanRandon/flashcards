@@ -9,13 +9,14 @@ serde = { version = "1", features = ["derive", "rc"] }
 itertools = "0.12"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
-pulldown-cmark = "0.9"
+pulldown-cmark = "0.10"
+tectonic = "0.15"
 rand = "0.8"
 sha2 = "0.10"
 katex = "0.4"
 base64 = "0.21"
-shuttle-runtime = "0.37"
-shuttle-secrets = "0.37"
+shuttle-runtime = "0.39"
+shuttle-secrets = "0.39"
 askama = { version = "0.12", features = ["mime", "mime_guess"] }
 nucleo-matcher = "0.3"
 router = { git = "https://github.com/AlanRandon/CLI-Apps" }

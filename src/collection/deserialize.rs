@@ -1,5 +1,5 @@
 use super::Document;
-use crate::Card;
+use crate::{Card, CardFormat};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use std::sync::Arc;
@@ -67,6 +67,12 @@ impl<'de> Deserialize<'de> for Card {
             return Err(Error::missing_field("definition"));
         };
 
+        let format = table
+            .remove("format")
+            .map(|format| CardFormat::deserialize(format).map_err(Error::custom))
+            .transpose()?
+            .unwrap_or(CardFormat::default());
+
         let topics = table
             .remove("topics")
             .map_or(Ok(Vec::new()), Vec::<Arc<str>>::deserialize)
@@ -75,6 +81,7 @@ impl<'de> Deserialize<'de> for Card {
         Ok(Self {
             term: String::deserialize(term).map_err(Error::custom)?,
             definition: String::deserialize(definition).map_err(Error::custom)?,
+            format,
             topics,
         })
     }

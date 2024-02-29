@@ -21,7 +21,7 @@
     >
       {% include "flashcard.html" %}
       <div class="flex gap-4 items-center justify-center flex-wrap">
-        {% for topic in card.topics %}
+        {% for topic in card.card.topics %}
         <a
           href="/view?name={{ topic }}"
           hx-target="main"
