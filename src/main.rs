@@ -56,7 +56,12 @@ async fn main(
 ) -> Result<impl shuttle_runtime::Service, shuttle_runtime::Error> {
     let collection = DocumentCollection::new("data").unwrap();
     let cards = Vec::<Card>::try_from(collection).unwrap();
-    let topics = Topics::new(cards.into_iter()).unwrap();
+
+    // Process flashcards on another thread because tectonic uses reqwest, which wants to handle
+    // its own async world
+    let topics = std::thread::spawn(|| Topics::new(cards.into_iter()).unwrap())
+        .join()
+        .unwrap();
 
     let password = secret_store.get("PASSWORD").unwrap();
 

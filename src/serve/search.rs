@@ -1,11 +1,10 @@
-use std::borrow::Cow;
-
 use super::{response, Error, Request, RequestExt, Response};
 use askama::Template;
 use http::StatusCode;
 use itertools::Itertools;
 use router::prelude::*;
 use serde::Deserialize;
+use std::borrow::Cow;
 
 #[derive(Template)]
 #[template(path = "search.html")]

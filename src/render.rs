@@ -1,6 +1,7 @@
 use crate::{Card, CardFormat};
-use base64::Engine;
 use pulldown_cmark as md;
+
+mod tex;
 
 mod katex_scanner {
     #[derive(Debug, Clone)]
@@ -133,7 +134,7 @@ pub struct RenderedCard {
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Malformated TeX")]
-    TexError(#[from] tectonic::Error),
+    TexError(#[from] tex::Error),
 }
 
 impl TryFrom<Card> for RenderedCard {
@@ -141,7 +142,7 @@ impl TryFrom<Card> for RenderedCard {
 
     fn try_from(card: Card) -> Result<Self, Self::Error> {
         let (term, definition) = match card.format {
-            CardFormat::Tex => (tex(&card.term)?, tex(&card.definition)?),
+            CardFormat::Tex => (tex::render(&card.term)?, tex::render(&card.definition)?),
             CardFormat::Markdown => (markdown(&card.term), markdown(&card.definition)),
         };
 
@@ -161,81 +162,4 @@ pub fn markdown(text: &str) -> String {
     let mut result = String::new();
     md::html::push_html(&mut result, parser);
     result
-}
-
-pub fn tex(text: &str) -> tectonic::Result<String> {
-    use tectonic::{config, ctry, driver, errmsg, status};
-
-    // tectonic::Spx2HtmlEngine::default().process_to_filesystem(, status, spx);
-
-    let text = format!(
-        r#"
-\documentclass{{article}}
-\usepackage{{chemfig}}
-\begin{{document}}
-{text}
-\end{{document}}
-"#
-    );
-
-    let mut status = status::NoopStatusBackend::default();
-
-    let config = ctry!(
-        config::PersistentConfig::open(false);
-        "failed to open the default configuration file"
-    );
-
-    let only_cached = false;
-    let bundle = ctry!(
-        config.default_bundle(only_cached, &mut status);
-        "failed to load the default resource bundle"
-    );
-
-    let format_cache_path = ctry!(
-        config.format_cache_path();
-        "failed to set up the format cache"
-    );
-
-    let mut files = {
-        let mut builder = driver::ProcessingSessionBuilder::default();
-        builder
-            .bundle(bundle)
-            .primary_input_buffer(text.as_bytes())
-            .tex_input_name("input.tex")
-            .format_name("latex")
-            .format_cache_path(format_cache_path)
-            .keep_logs(false)
-            .keep_intermediates(false)
-            .print_stdout(false)
-            .output_format(driver::OutputFormat::Pdf)
-            .do_not_write_output_files();
-
-        let mut session = ctry!(
-            builder.create(&mut status);
-            "failed to initialize the LaTeX processing session"
-        );
-        ctry!(
-            session.run(&mut status);
-            "the LaTeX engine failed"
-        );
-        session.into_file_data()
-    };
-
-    let data = files
-        .remove("input.pdf")
-        .ok_or::<tectonic::Error>(errmsg!(
-            "LaTeX didn't report failure, but no output was created (??)"
-        ))?
-        .data;
-
-    // TODO: actual pdf to html
-
-    let encoded =
-        base64::engine::GeneralPurpose::new(&base64::alphabet::STANDARD, Default::default())
-            .encode(data);
-
-    Ok(format!(
-        r#"<embed src="data:application/pdf;base64,{encoded}" width="500" height="500" 
- type="application/pdf">"#
-    ))
 }

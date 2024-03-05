@@ -1,14 +1,10 @@
 <label>
   <input type="checkbox" class="peer flashcard-toggle hidden" />
   <div class="flashcard peer-checked:flashcard-flipped">
-    <div class="flashcard-side prose prose-slate" hx-disable="true" data-term>
+    <div class="flashcard-side prose prose-slate" data-term>
       {{ card.term|safe }}
     </div>
-    <div
-      class="flashcard-side prose prose-slate"
-      hx-disable="true"
-      data-definition
-    >
+    <div class="flashcard-side prose prose-slate" data-definition>
       {{ card.definition|safe }}
     </div>
   </div>

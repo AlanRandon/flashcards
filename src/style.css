@@ -4,160 +4,174 @@
 @tailwind components;
 
 @layer base {
-	:root {
-		@apply h-full;
-	}
+  :root {
+    @apply h-full;
+  }
 
-	body {
-		@apply min-h-full flex flex-col items-stretch justify-start bg-slate-50;
-	}
+  body {
+    @apply min-h-full flex flex-col items-stretch justify-start bg-slate-50;
+  }
 
-	* {
-		@apply box-border;
-	}
+  * {
+    @apply box-border;
+  }
 }
 
 @layer components {
-	.card-unbordered,
-	.card {
-		@apply shadow bg-slate-50 border-slate-900/10 p-4;
-	}
+  .card-unbordered,
+  .card {
+    @apply shadow bg-slate-50 border-slate-900/10 p-4;
+  }
 
-	.card {
-		@apply border-2 rounded;
-	}
+  .card {
+    @apply border-2 rounded;
+  }
 
-	.flashcard {
-		@apply relative transition-[rotate] duration-500;
-		perspective: 1000px;
-		transform-style: preserve-3d;
-	}
+  .flashcard {
+    @apply relative transition-[rotate] duration-500;
+    perspective: 1000px;
+    transform-style: preserve-3d;
+  }
 
-	:not(.flashcard-stretch) .flashcard {
-		@apply min-h-[10em] min-w-[25ch];
-	}
+  :not(.flashcard-stretch) .flashcard {
+    @apply min-h-[10em] min-w-[25ch];
+  }
 
-	.flashcard-stretch :is(.flashcard, label) {
-		@apply h-full w-full;
-	}
+  .flashcard-stretch :is(.flashcard, label) {
+    @apply h-full w-full;
+  }
 
-	.flashcard .flashcard-side {
-		@apply grid place-items-center text-center overflow-auto;
-		@apply break-words hyphens-auto;
-		@apply card cursor-pointer;
-		@apply absolute inset-0 max-w-none;
-		backface-visibility: hidden;
-	}
+  .flashcard .flashcard-side {
+    @apply grid place-items-center text-center overflow-auto;
+    @apply break-words hyphens-auto;
+    @apply card cursor-pointer;
+    @apply absolute inset-0 max-w-none;
+    backface-visibility: hidden;
+  }
 
-	.flashcard .flashcard-side:last-child {
-		rotate: x 180deg;
-	}
+  .flashcard .flashcard-side:last-child {
+    rotate: x 180deg;
+  }
 
-	.flashcard-flipped {
-		rotate: x 180deg;
-	}
+  .flashcard-flipped {
+    rotate: x 180deg;
+  }
 
-	.btn-active {
-		@apply bg-purple-800;
-	}
+  .btn-active {
+    @apply bg-purple-800;
+  }
 
-	.btn-hover {
-		@apply bg-purple-400;
-	}
+  .btn-hover {
+    @apply bg-purple-400;
+  }
 
-	.btn {
-		@apply bg-purple-500 transition-colors rounded-[100vmax] text-purple-50 p-2 px-4 font-bold;
-	}
+  .btn {
+    @apply bg-purple-500 transition-colors rounded-[100vmax] text-purple-50 p-2 px-4 font-bold;
+  }
 
-	.btn:is(:hover, :focus-within) {
-		@apply btn-hover;
-	}
+  .btn:is(:hover, :focus-within) {
+    @apply btn-hover;
+  }
 
-	.btn:active {
-		@apply btn-active;
-	}
+  .btn:active {
+    @apply btn-active;
+  }
 
-	.word {
-		display: inline-block;
-		transition: color 500ms;
-		transition-delay: calc(var(--word-number, 0) * 50ms);
-	}
+  .word {
+    display: inline-block;
+    transition: color 500ms;
+    transition-delay: calc(var(--word-number, 0) * 50ms);
+  }
 
-	.word-show-only-first-letter .word {
-		color: transparent;
-	}
+  .word-show-only-first-letter .word {
+    color: transparent;
+  }
 
-	.word::first-letter {
-		color: var(--tw-prose-body, black);
-	}
+  .word::first-letter {
+    color: var(--tw-prose-body, black);
+  }
 
-	@keyframes fade-in {
-		from {
-			opacity: 0;
-		}
-	}
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
 
-	@keyframes fade-out {
-		to {
-			opacity: 0;
-		}
-	}
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
 
-	@keyframes slide-from-right {
-		from {
-			transform: translateX(30px);
-		}
-	}
+  @keyframes slide-from-right {
+    from {
+      transform: translateX(30px);
+    }
+  }
 
-	@keyframes slide-to-left {
-		to {
-			transform: translateX(-30px);
-		}
-	}
+  @keyframes slide-to-left {
+    to {
+      transform: translateX(-30px);
+    }
+  }
 
-	#nav {
-		view-transition-name: nav;
-	}
+  #nav {
+    view-transition-name: nav;
+  }
 
-	#view-page {
-		view-transition-name: view;
-	}
+  #view-page {
+    view-transition-name: view;
+  }
 
-	#search-page {
-		view-transition-name: search;
-	}
+  #search-page {
+    view-transition-name: search;
+  }
 
-	#study-page {
-		view-transition-name: study;
-	}
+  #study-page {
+    view-transition-name: study;
+  }
 
-	#study-flashcard {
-		view-transition-name: study-flashcard;
-	}
+  #study-flashcard {
+    view-transition-name: study-flashcard;
+  }
 
-	::view-transition-old(view):only-child,
-	::view-transition-old(study):only-child,
-	::view-transition-old(search):only-child,
-	::view-transition-old(study-flashcard):only-child {
-		animation: 0.15s ease-in-out both fade-out;
-	}
+  ::view-transition-old(view):only-child,
+  ::view-transition-old(study):only-child,
+  ::view-transition-old(search):only-child,
+  ::view-transition-old(study-flashcard):only-child {
+    animation: 0.15s ease-in-out both fade-out;
+  }
 
-	::view-transition-new(view):only-child,
-	::view-transition-new(study):only-child,
-	::view-transition-new(search):only-child,
-	::view-transition-new(study-flashcard):only-child {
-		animation: 0.15s ease-in-out 0.12s both fade-in;
-	}
+  ::view-transition-new(view):only-child,
+  ::view-transition-new(study):only-child,
+  ::view-transition-new(search):only-child,
+  ::view-transition-new(study-flashcard):only-child {
+    animation: 0.15s ease-in-out 0.12s both fade-in;
+  }
 
-	::view-transition-old(study-flashcard) {
-		animation:
-			0.15s linear both fade-out,
-			0.15s linear both slide-to-left;
-	}
+  ::view-transition-old(study-flashcard) {
+    animation:
+      0.15s linear both fade-out,
+      0.15s linear both slide-to-left;
+  }
 
-	::view-transition-new(study-flashcard) {
-		animation:
-			0.15s linear 0.12s both fade-in,
-			0.15s linear 0.12s both slide-from-right;
-	}
+  ::view-transition-new(study-flashcard) {
+    animation:
+      0.15s linear 0.12s both fade-in,
+      0.15s linear 0.12s both slide-from-right;
+  }
+
+  dialog[open]::backdrop {
+    @apply bg-black/25;
+  }
+
+  dialog[open] {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+  }
+
+  dialog:not([open]) {
+    @apply hidden;
+  }
 }

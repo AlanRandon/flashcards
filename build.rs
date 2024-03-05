@@ -33,33 +33,35 @@ fn main() {
         return;
     }
 
+    let mut commands = Vec::new();
+
     let bin = concat!(env!("CARGO_MANIFEST_DIR"), "/node_modules/.bin");
     let tailwind = format!("{bin}/postcss src/style.css -o dist/style.css");
+    commands.push(tailwind);
     let esbuild = format!("{bin}/esbuild src/init.ts --outfile=dist/init.js --bundle --minify");
+    commands.push(esbuild);
+
+    let pdf_fonts_exists = std::fs::metadata("dist/pdf-fonts").unwrap().is_dir();
+    if !pdf_fonts_exists {
+        let pdf_fonts = "git clone https://github.com/s3bk/pdf_fonts dist/pdf-fonts";
+        commands.push(pdf_fonts.to_string());
+    }
 
     if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .arg("/C")
-            .arg(tailwind)
-            .status()
-            .exit_on_failure();
-
-        Command::new("cmd")
-            .arg("/C")
-            .arg(esbuild)
-            .status()
-            .exit_on_failure();
+        for command in commands {
+            Command::new("cmd")
+                .arg("/C")
+                .arg(command)
+                .status()
+                .exit_on_failure();
+        }
     } else {
-        Command::new("sh")
-            .arg("-c")
-            .arg(tailwind)
-            .status()
-            .exit_on_failure();
-
-        Command::new("sh")
-            .arg("-c")
-            .arg(esbuild)
-            .status()
-            .exit_on_failure();
+        for command in commands {
+            Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .status()
+                .exit_on_failure();
+        }
     }
 }
