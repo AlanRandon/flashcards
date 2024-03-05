@@ -1,4 +1,6 @@
 /target
+/dep-installer-hack/target
+/dep-installer-hack/Secrets*.toml
 /node_modules
 /dist
 package-lock.json
