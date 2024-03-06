@@ -1,5 +1,5 @@
 use super::Document;
-use crate::{Card, CardFormat};
+use crate::{Card, CardFormat, CardSide};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use std::sync::Arc;
@@ -67,22 +67,45 @@ impl<'de> Deserialize<'de> for Card {
             return Err(Error::missing_field("definition"));
         };
 
-        let format = table
-            .remove("format")
-            .map(|format| CardFormat::deserialize(format).map_err(Error::custom))
-            .transpose()?
-            .unwrap_or(CardFormat::default());
-
         let topics = table
             .remove("topics")
             .map_or(Ok(Vec::new()), Vec::<Arc<str>>::deserialize)
             .map_err(Error::custom)?;
 
         Ok(Self {
-            term: String::deserialize(term).map_err(Error::custom)?,
-            definition: String::deserialize(definition).map_err(Error::custom)?,
-            format,
+            term: Deserialize::deserialize(term).map_err(Error::custom)?,
+            definition: Deserialize::deserialize(definition).map_err(Error::custom)?,
             topics,
         })
+    }
+}
+
+impl<'de> Deserialize<'de> for CardSide {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = toml::Value::deserialize(deserializer)?;
+        match value {
+            toml::Value::String(text) => Ok(Self {
+                text,
+                format: CardFormat::Markdown,
+            }),
+            toml::Value::Table(mut table) => {
+                let format = table
+                    .remove("format")
+                    .map(|format| CardFormat::deserialize(format).map_err(Error::custom))
+                    .transpose()?
+                    .unwrap_or(CardFormat::default());
+
+                let text = match table.remove("text") {
+                    Some(text) => Deserialize::deserialize(text).map_err(Error::custom),
+                    None => return Err(Error::custom("missing text")),
+                }?;
+
+                Ok(Self { text, format })
+            }
+            _ => Err(Error::custom("Invalid CardSide")),
+        }
     }
 }

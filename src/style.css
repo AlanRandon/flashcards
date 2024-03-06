@@ -9,7 +9,7 @@
   }
 
   body {
-    @apply min-h-full flex flex-col items-stretch justify-start bg-slate-50;
+    @apply min-h-full flex flex-col items-stretch justify-start bg-slate-900 text-white;
   }
 
   * {
@@ -20,41 +20,11 @@
 @layer components {
   .card-unbordered,
   .card {
-    @apply shadow bg-slate-50 border-slate-900/10 p-4;
+    @apply shadow bg-slate-800 border-slate-700/10 p-4;
   }
 
   .card {
-    @apply border-2 rounded;
-  }
-
-  .flashcard {
-    @apply relative transition-[rotate] duration-500;
-    perspective: 1000px;
-    transform-style: preserve-3d;
-  }
-
-  :not(.flashcard-stretch) .flashcard {
-    @apply min-h-[10em] min-w-[25ch];
-  }
-
-  .flashcard-stretch :is(.flashcard, label) {
-    @apply h-full w-full;
-  }
-
-  .flashcard .flashcard-side {
-    @apply grid place-items-center text-center overflow-auto;
-    @apply break-words hyphens-auto;
-    @apply card cursor-pointer;
-    @apply absolute inset-0 max-w-none;
-    backface-visibility: hidden;
-  }
-
-  .flashcard .flashcard-side:last-child {
-    rotate: x 180deg;
-  }
-
-  .flashcard-flipped {
-    rotate: x 180deg;
+    @apply border-2 rounded-sm;
   }
 
   .btn-active {
@@ -65,8 +35,8 @@
     @apply bg-purple-400;
   }
 
-  .btn {
-    @apply bg-purple-500 transition-colors rounded-[100vmax] text-purple-50 p-2 px-4 font-bold;
+  :where(.btn) {
+    @apply bg-purple-500 transition-colors rounded-sm text-purple-50 p-2 px-4 font-bold;
   }
 
   .btn:is(:hover, :focus-within) {

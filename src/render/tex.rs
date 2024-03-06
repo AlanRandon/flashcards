@@ -42,7 +42,17 @@ fn pdf_to_svg(data: &[u8]) -> Result<Vec<u8>, Error> {
     let mut backend = pdf_render::SceneBackend::new(&mut cache);
 
     file.pages()
-        .map_ok(|page| pdf_render::render_page(&mut backend, &resolver, &page, Default::default()))
+        .map_ok(|page| {
+            pdf_render::render_page(
+                &mut backend,
+                &resolver,
+                &page,
+                #[allow(clippy::default_trait_access)]
+                {
+                    Default::default()
+                },
+            )
+        })
         .collect::<Result<Result<Vec<_>, _>, _>>()??;
 
     let scene = backend.finish();

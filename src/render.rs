@@ -1,4 +1,4 @@
-use crate::{Card, CardFormat};
+use crate::{Card, CardFormat, CardSide};
 use pulldown_cmark as md;
 
 mod tex;
@@ -141,16 +141,18 @@ impl TryFrom<Card> for RenderedCard {
     type Error = Error;
 
     fn try_from(card: Card) -> Result<Self, Self::Error> {
-        let (term, definition) = match card.format {
-            CardFormat::Tex => (tex::render(&card.term)?, tex::render(&card.definition)?),
-            CardFormat::Markdown => (markdown(&card.term), markdown(&card.definition)),
-        };
-
         Ok(Self {
+            term: render(&card.term)?,
+            definition: render(&card.definition)?,
             card,
-            term,
-            definition,
         })
+    }
+}
+
+fn render(side: &CardSide) -> Result<String, Error> {
+    match side.format {
+        CardFormat::Tex => Ok(tex::render(&side.text)?),
+        CardFormat::Markdown => Ok(markdown(&side.text)),
     }
 }
 

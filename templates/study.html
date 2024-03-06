@@ -2,7 +2,7 @@
   <div
     hidden
     hx-trigger="keyup[key==' '] from:body"
-    hx-on::trigger="this.parentElement.querySelector('.flashcard-toggle').checked ^= true"
+    hx-on::trigger="this.parentElement.querySelector('[data-flashcard-toggle]').checked ^= true"
   ></div>
   <form
     action="/study"
@@ -15,10 +15,7 @@
     hx-trigger="keyup[key=='Enter'] from:body, submit"
   >
     <input type="hidden" name="name" value="{{ name }}" />
-    <div
-      class="flex flex-col gap-4 grow flashcard-stretch"
-      id="study-flashcard"
-    >
+    <div class="flex flex-col gap-4 grow" id="study-flashcard">
       {% include "flashcard.html" %}
       <div class="flex gap-4 items-center justify-center flex-wrap">
         {% for topic in card.card.topics %}
@@ -35,18 +32,20 @@
       </div>
     </div>
     <div class="flex gap-4 items-center justify-center">
-      <button type="submit" class="btn">Next</button>
+      <label class="btn flex justify-center gap-2">
+        Next
+        <span class="material-symbols-outlined">navigate_next</span>
+        <input type="submit" hidden />
+      </label>
       <label
-        hx-on:click="const e = this.closest('form').querySelector('.flashcard'); wordify(e); e.classList.toggle('word-show-only-first-letter', this.querySelector('input').checked)"
+        hx-on:click="const e = this.closest('form').querySelector('[data-flashcard]'); wordify(e); e.classList.toggle('word-show-only-first-letter', this.querySelector('input').checked)"
         class="flex gap-2 items-center"
       >
         First Letters
-        <div
-          class="p-2 box-content h-[1em] w-[3ch] bg-purple-500 rounded-[100vmax] flex"
-        >
+        <div class="box-content h-[1em] w-[3ch] flex btn px-2">
           <input type="checkbox" class="hidden peer" id="first-letters" />
           <div
-            class="h-[1em] aspect-square bg-purple-50 rounded-full transition-all peer-checked:ml-[100%] peer-checked:translate-x-[-100%]"
+            class="h-[1em] aspect-square bg-purple-50 rounded-sm transition-all peer-checked:ml-[100%] peer-checked:translate-x-[-100%]"
           ></div>
         </div>
       </label>

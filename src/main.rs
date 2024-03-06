@@ -18,10 +18,15 @@ pub enum CardFormat {
 }
 
 #[derive(Debug)]
-pub struct Card {
-    term: String,
-    definition: String,
+pub struct CardSide {
+    text: String,
     format: CardFormat,
+}
+
+#[derive(Debug)]
+pub struct Card {
+    term: CardSide,
+    definition: CardSide,
     topics: Vec<Arc<str>>,
 }
 
