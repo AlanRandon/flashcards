@@ -9,7 +9,8 @@
   }
 
   body {
-    @apply min-h-full flex flex-col items-stretch justify-start bg-slate-900 text-white;
+    @apply min-h-full flex flex-col items-stretch justify-start text-white;
+    @apply radial-gradient(circle at 50% 50%, theme("colors.slate.900"), transparent) bg-slate-900;
   }
 
   * {
