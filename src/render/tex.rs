@@ -28,7 +28,7 @@ pub fn render(source: &str) -> Result<String, Error> {
     pulldown_cmark_escape::escape_html(&mut escaped_source, source).unwrap();
 
     Ok(format!(
-        r#"<img src="data:image/svg+xml;base64,{data}" alt="{escaped_source}" title="{escaped_source}">"#
+        r#"<img src="data:image/svg+xml;base64,{data}" alt="{escaped_source}" title="{escaped_source}" class="tex">"#
     ))
 }
 
@@ -67,10 +67,14 @@ fn pdf_to_svg(data: &[u8]) -> Result<Vec<u8>, Error> {
 fn tex_to_pdf(source: &str) -> Result<Vec<u8>, Error> {
     let tex_input = format!(
         r#"
-\documentclass{{standalone}}
+\documentclass[border=5pt]{{standalone}}
 \usepackage{{chemfig}}
 \usepackage{{mhchem}}
+\usepackage{{xcolor}}
+\definecolor{{base}}{{HTML}}{{1e293b}}
 \begin{{document}}
+\pagecolor{{base}}
+\color{{white}}
 {source}
 \end{{document}}
 "#

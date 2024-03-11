@@ -6,14 +6,20 @@ fn main() {
     if std::env::var("HOSTNAME")
         .unwrap_or_default()
         .contains("shuttle")
-        && !std::process::Command::new("apt")
+    {
+        if !std::process::Command::new("apt")
             .arg("install")
             .arg("-y")
             .args(pkgs.split(' '))
             .status()
             .expect("failed to run apt")
             .success()
-    {
-        panic!("failed to install dependencies")
+        {
+            panic!("failed to install dependencies")
+        }
+    } else {
+        panic!("Run on shuttle")
     }
+
+    println!("cargo:rustc-link-lib=graphite2")
 }

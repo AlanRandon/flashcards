@@ -9,8 +9,7 @@
   }
 
   body {
-    @apply min-h-full flex flex-col items-stretch justify-start text-white;
-    @apply radial-gradient(circle at 50% 50%, theme("colors.slate.900"), transparent) bg-slate-900;
+    @apply min-h-full flex flex-col items-stretch justify-start text-white bg-slate-900;
   }
 
   * {
@@ -19,13 +18,27 @@
 }
 
 @layer components {
-  .card-unbordered,
-  .card {
-    @apply shadow bg-slate-800 border-slate-700/10 p-4;
+  :where(.card) {
+    @apply rounded-sm bg-slate-800 p-4;
   }
 
-  .card {
-    @apply border-2 rounded-sm;
+  [data-flashcard]::after {
+    content: "";
+    @apply opacity-0 transition-[opacity] pointer-events-none inset-0 absolute duration-500;
+    background-image: radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      theme("colors.purple.100"),
+      transparent
+    );
+  }
+
+  [data-flashcard]:is(:hover, :focus-within)::after {
+    @apply opacity-10;
+  }
+
+  .tex {
+    /* remove edges of pdf_render white background */
+    clip-path: rect(1pt 1pt calc(100% - 1pt) calc(100% - 1pt));
   }
 
   .btn-active {
