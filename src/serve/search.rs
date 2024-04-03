@@ -38,24 +38,22 @@ pub async fn search(request: &Request<'req>) -> Response {
     };
 
     let topics = if body.q.is_empty() {
-        topics.collect()
+        topics.collect_vec()
     } else {
-        let query = nucleo_matcher::pattern::Pattern::parse(
-            &body.q,
-            nucleo_matcher::pattern::CaseMatching::Smart,
-            nucleo_matcher::pattern::Normalization::Smart,
-        );
-        let mut matcher = nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT);
+        // let split = |ch: char| ch.is_whitespace() || ch == '/';
+        // let query_parts = body.q.split(split).collect::<Vec<_>>();
+        // topic.split(split).filter_map(|part| {
+        //     query_parts.map(|query_part|)
+        // }),
+
+        let match_score =
+            |topic| sublime_fuzzy::best_match(&body.q, topic).map(|score| score.score());
 
         topics
-            .map(|topic| (topic, nucleo_matcher::Utf32String::from(topic)))
-            .sorted_by(|(_, a), (_, b)| {
-                query
-                    .score(b.slice(..), &mut matcher)
-                    .cmp(&query.score(a.slice(..), &mut matcher))
-            })
+            .filter_map(|topic| match_score(topic).map(|score| (topic, score)))
+            .sorted_by(|(_, score_a), (_, score_b)| score_b.cmp(score_a))
             .map(|(topic, _)| topic)
-            .collect()
+            .collect_vec()
     };
 
     response::partial_if(&Search { topics }, StatusCode::OK, request.is_htmx())

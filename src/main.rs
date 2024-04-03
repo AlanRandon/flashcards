@@ -57,7 +57,7 @@ impl Topics {
 #[shuttle_runtime::main]
 #[allow(clippy::unused_async)]
 async fn main(
-    #[shuttle_secrets::Secrets] secret_store: shuttle_secrets::SecretStore,
+    #[shuttle_runtime::Secrets] secret_store: shuttle_runtime::SecretStore,
 ) -> Result<impl shuttle_runtime::Service, shuttle_runtime::Error> {
     let collection = DocumentCollection::new("data").unwrap();
     let cards = Vec::<Card>::try_from(collection).unwrap();

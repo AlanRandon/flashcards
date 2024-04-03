@@ -9,11 +9,7 @@
   }
 
   body {
-    @apply min-h-full flex flex-col items-stretch justify-start text-white;
-    background: url("./stars.svg"), theme("colors.slate.900");
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
+    @apply min-h-full flex flex-col items-stretch justify-start text-white bg-slate-900;
   }
 
   * {
@@ -105,6 +101,10 @@
 
   #nav {
     view-transition-name: nav;
+    background: url("./stars.svg"), theme("colors.slate.900");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
   }
 
   #view-page {
