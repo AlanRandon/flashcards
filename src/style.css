@@ -49,7 +49,8 @@
     @apply bg-purple-400;
   }
 
-  :where(.btn) {
+  :where(.btn),
+  button.btn {
     @apply bg-purple-500 transition-colors rounded-sm text-purple-50 p-2 px-4 font-bold;
   }
 
@@ -101,7 +102,7 @@
 
   #nav {
     view-transition-name: nav;
-    background: url("./stars.svg"), theme("colors.slate.900");
+    background: theme("colors.slate.900");
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

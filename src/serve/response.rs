@@ -48,3 +48,11 @@ pub fn no_cache(mut response: Response) -> Response {
         .insert("Cache-Control", http::HeaderValue::from_static("no-cache"));
     response
 }
+
+pub fn header(mut response: Response, key: &'static str, value: &str) -> Response {
+    response.headers_mut().insert(
+        key,
+        http::HeaderValue::from_str(value).unwrap_or(http::HeaderValue::from_static("")),
+    );
+    response
+}

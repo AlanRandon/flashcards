@@ -1,14 +1,20 @@
-use super::{response, Error, Request, RequestExt, Response};
-use crate::serve::TopicQuery;
-use crate::{RenderedCard, Topics};
+use super::{response, Error, RenderedCard, Request, RequestExt, Response};
 use askama::Template;
 use http::StatusCode;
 use rand::prelude::*;
 use router::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Query<'r> {
+    name: Cow<'r, str>,
+    id: Option<usize>,
+}
 
 #[get("study")]
 pub fn study(request: &Request<'req>) -> Response {
-    let Ok(query) = request.query::<TopicQuery>() else {
+    let Ok(mut query) = request.query::<Query>() else {
         return response::no_cache(response::partial_if(
             &Error {
                 err: "Invalid query",
@@ -18,7 +24,24 @@ pub fn study(request: &Request<'req>) -> Response {
         ));
     };
 
-    let Some(card) = get_random_card(&query, request.context.topics) else {
+    let Some(topic) = request.context.topics.get(&query.name) else {
+        return response::no_cache(response::partial_if(
+            &Error {
+                err: "Topic not found",
+            },
+            StatusCode::NOT_FOUND,
+            request.is_htmx(),
+        ));
+    };
+
+    let id = query.id.unwrap_or_else(|| {
+        let mut rng = thread_rng();
+        let id = rand::distributions::Uniform::new(0, topic.len()).sample(&mut rng);
+        query.id = Some(id);
+        id
+    });
+
+    let Some(card) = topic.get(id).map(AsRef::as_ref) else {
         return response::no_cache(response::partial_if(
             &Error {
                 err: "Card not found",
@@ -28,24 +51,30 @@ pub fn study(request: &Request<'req>) -> Response {
         ));
     };
 
-    response::no_cache(response::partial_if(
-        &Study {
-            card,
-            name: &query.name,
-        },
-        StatusCode::OK,
-        request.is_htmx(),
-    ))
-}
-
-fn get_random_card<'a>(query: &TopicQuery<'_>, state: &'a Topics) -> Option<&'a RenderedCard> {
-    let mut rng = thread_rng();
-    state.get(&query.name)?.choose(&mut rng).map(AsRef::as_ref)
+    response::header(
+        response::no_cache(response::partial_if(
+            &Study {
+                card,
+                topic: &query.name,
+                previous_card_id: id.checked_sub(1),
+                next_card_id: id.checked_add(1).filter(|id| *id < topic.len()),
+            },
+            StatusCode::OK,
+            request.is_htmx(),
+        )),
+        "HX-Push-Url",
+        &format!(
+            "/study?{}",
+            &serde_urlencoded::to_string(query).unwrap_or_else(|_| "false".to_string())
+        ),
+    )
 }
 
 #[derive(Template)]
 #[template(path = "study.html")]
 struct Study<'a> {
     card: &'a RenderedCard,
-    name: &'a str,
+    topic: &'a str,
+    next_card_id: Option<usize>,
+    previous_card_id: Option<usize>,
 }

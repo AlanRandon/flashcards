@@ -1,27 +1,50 @@
 {
-	"$schema": "http://json-schema.org/draft-07/schema#",
-	"type": "object",
-	"properties": {
-		"cards": {
-			"type": "array",
-			"items": {
-				"type": "object",
-				"properties": {
-					"term": {
-						"type": "string"
-					},
-					"definition": {
-						"type": "string"
-					}
-				},
-				"required": ["term", "definition"]
-			}
-		},
-		"topics": {
-			"type": "array",
-			"items": {
-				"type": "string"
-			}
-		}
-	}
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "$defs": {
+    "side": {
+      "anyOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "format": {
+              "enum": ["markdown", "tex"]
+            }
+          },
+          "required": ["text", "format"]
+        }
+      ]
+    }
+  },
+  "properties": {
+    "cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "$ref": "#/$defs/side"
+          },
+          "definition": {
+            "$ref": "#/$defs/side"
+          },
+          "topics": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["term", "definition"]
+      }
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
 }

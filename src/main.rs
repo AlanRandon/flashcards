@@ -1,6 +1,7 @@
 #![warn(clippy::pedantic)]
 
 use collection::DocumentCollection;
+use itertools::Itertools;
 use render::RenderedCard;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -31,26 +32,27 @@ pub struct Card {
 }
 
 #[derive(Debug)]
-pub struct Topics(HashMap<Arc<str>, Vec<Arc<RenderedCard>>>);
+pub struct Topics {
+    topics: HashMap<Arc<str>, Vec<Arc<RenderedCard>>>,
+}
 
 impl Topics {
-    pub fn new(cards: impl Iterator<Item = Card>) -> Result<Self, render::Error> {
+    pub fn new(cards: &[Arc<RenderedCard>]) -> Self {
         let mut topics = HashMap::<_, Vec<_>>::new();
         for card in cards {
-            let card = Arc::new(RenderedCard::try_from(card)?);
             for topic in &card.card.topics {
                 topics
                     .entry(Arc::clone(topic))
                     .or_default()
-                    .push(Arc::clone(&card));
+                    .push(Arc::clone(card));
             }
         }
-        Ok(Self(topics))
+        Self { topics }
     }
 
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&[Arc<RenderedCard>]> {
-        self.0.get(name).map(Vec::as_slice)
+        self.topics.get(name).map(Vec::as_slice)
     }
 }
 
@@ -62,11 +64,18 @@ async fn main(
     let collection = DocumentCollection::new("data").unwrap();
     let cards = Vec::<Card>::try_from(collection).unwrap();
 
-    // Process flashcards on another thread because tectonic uses reqwest, which wants to handle
-    // its own async world
-    let topics = std::thread::spawn(|| Topics::new(cards.into_iter()).unwrap())
-        .join()
-        .unwrap();
+    let cards = std::thread::spawn(|| {
+        cards
+            .into_iter()
+            .map(RenderedCard::try_from)
+            .map_ok(Arc::new)
+            .collect::<Result<Vec<_>, _>>()
+    })
+    .join()
+    .expect("Rendering cards panicked")
+    .expect("Rendering cards errored");
+
+    let topics = Topics::new(&cards);
 
     let password = secret_store.get("PASSWORD").unwrap();
 

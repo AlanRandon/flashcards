@@ -14,7 +14,14 @@ struct Search<'a> {
 
 #[get]
 pub fn index(request: &Request<'req>) -> Response {
-    let topics = request.context.topics.0.keys().map(AsRef::as_ref).collect();
+    let topics = request
+        .context
+        .topics
+        .topics
+        .keys()
+        .map(AsRef::as_ref)
+        .collect();
+
     response::partial_if(&Search { topics }, StatusCode::OK, request.is_htmx())
 }
 
@@ -25,7 +32,7 @@ pub struct Query<'r> {
 
 #[post("search")]
 pub async fn search(request: &Request<'req>) -> Response {
-    let topics = request.context.topics.0.keys().map(AsRef::as_ref);
+    let topics = request.context.topics.topics.keys().map(AsRef::as_ref);
 
     let Ok(body) = request.form::<Query>().await else {
         return response::partial_if(

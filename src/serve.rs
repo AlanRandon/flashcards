@@ -112,7 +112,9 @@ impl App {
 
         let listener = TcpListener::bind(addr).await?;
 
-        let Self { password, topics } = self;
+        let Self {
+            password, topics, ..
+        } = self;
         let topics = Arc::new(topics);
         let password = Arc::<str>::from(password.into_boxed_str());
         let dist_files =

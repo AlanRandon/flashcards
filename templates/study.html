@@ -4,17 +4,10 @@
     hx-trigger="keyup[key==' '] from:body"
     hx-on::trigger="this.parentElement.querySelector('[data-flashcard-toggle]').checked ^= true"
   ></div>
-  <form
-    action="/study"
-    method="GET"
+  <div
+    id="study-container"
     class="flex justify-content-center flex-col gap-4 grow p-4"
-    hx-target="find div"
-    hx-boost="true"
-    hx-swap="outerHTML"
-    hx-select="#study-flashcard"
-    hx-trigger="keyup[key=='Enter'] from:body, submit"
   >
-    <input type="hidden" name="name" value="{{ name }}" />
     <div class="flex flex-col gap-4 grow" id="study-flashcard">
       {% include "flashcard.html" %}
       <div class="flex gap-4 items-center justify-center flex-wrap">
@@ -31,14 +24,47 @@
         {% endfor %}
       </div>
     </div>
-    <div class="flex gap-4 items-center justify-center">
-      <label class="btn flex justify-center gap-2">
+    <div class="flex gap-4 items-center justify-center flex-wrap">
+      {% if let Some(id) = previous_card_id %}
+      <button
+        class="btn flex justify-center gap-2"
+        hx-target="#study-container"
+        hx-select="#study-container"
+        hx-swap="outerHTML"
+        hx-get="/study?name={{ topic }}&id={{ id }}"
+        hidden
+      >
+        Previous
+        <span class="material-symbols-outlined">arrow_back</span>
+      </button>
+      {% endif %}
+      <button
+        class="btn flex justify-center gap-2"
+        hx-target="#study-container"
+        hx-select="#study-container"
+        hx-swap="outerHTML"
+        hx-get="/study?name={{ topic }}"
+        hx-trigger="keyup[key=='Enter'] from:body, click"
+        hidden
+      >
+        Random
+        <span class="material-symbols-outlined">question_mark</span>
+      </button>
+      {% if let Some(id) = next_card_id %}
+      <button
+        class="btn flex justify-center gap-2"
+        hx-target="#study-container"
+        hx-select="#study-container"
+        hx-swap="outerHTML"
+        hx-get="/study?name={{ topic }}&id={{ id }}"
+        hidden
+      >
         Next
-        <span class="material-symbols-outlined">navigate_next</span>
-        <input type="submit" hidden />
-      </label>
+        <span class="material-symbols-outlined">arrow_forward</span>
+      </button>
+      {% endif %}
       <label
-        hx-on:click="const e = this.closest('form').querySelector('[data-flashcard]'); wordify(e); e.classList.toggle('word-show-only-first-letter', this.querySelector('input').checked)"
+        hx-on:click="const e = this.closest('#study-container').querySelector('[data-flashcard]'); wordify(e); e.classList.toggle('word-show-only-first-letter', this.querySelector('input').checked)"
         class="flex gap-2 items-center"
       >
         First Letters
@@ -50,5 +76,5 @@
         </div>
       </label>
     </div>
-  </form>
+  </div>
 </main>
