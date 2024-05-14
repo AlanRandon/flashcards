@@ -5,18 +5,22 @@
     data-flashcard
   >
     <div
-      class="grid place-items-center text-center overflow-auto prose prose-slate prose-invert hyphens-auto card cursor-pointer absolute inset-0 [backface-visibility:hidden]"
+      class="grid place-items-center overflow-auto hyphens-auto card cursor-pointer absolute inset-0 [backface-visibility:hidden]"
       data-term
       hx-disable="true"
     >
-      {{ card.term|safe }}
+      <div class="prose prose-slate prose-invert prose-xl">
+        {{ card.term|safe }}
+      </div>
     </div>
     <div
-      class="grid place-items-center text-center overflow-auto prose prose-slate prose-invert hyphens-auto card cursor-pointer absolute inset-0 [backface-visibility:hidden] [rotate:x_180deg]"
+      class="grid place-items-center overflow-auto hyphens-auto card cursor-pointer absolute inset-0 [backface-visibility:hidden] [rotate:x_180deg]"
       data-definition
       hx-disable="true"
     >
-      {{ card.definition|safe }}
+      <div class="prose prose-slate prose-invert prose-xl">
+        {{ card.definition|safe }}
+      </div>
     </div>
   </div>
 </label>
