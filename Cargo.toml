@@ -14,20 +14,16 @@ itertools = "0.12"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
-# sha2 = "0.10"
 base64 = "0.22"
 sublime_fuzzy = "0.7"
-shuttle-runtime = "0.43"
+shuttle-runtime = "0.45"
 askama = { version = "0.12", features = ["mime", "mime_guess"] }
 router = { git = "https://github.com/AlanRandon/CLI-Apps" }
 
 tectonic = "0.15"
-pdf_render = { git = "https://github.com/pdf-rs/pdf_render" }
-pdf = { git = "https://github.com/pdf-rs/pdf" }
-pathfinder_export = { git = "https://github.com/servo/pathfinder" }
-pulldown-cmark-escape = "0.10"
+pulldown-cmark-escape = "0.11"
 katex = "0.4"
-pulldown-cmark = "0.10"
+pulldown-cmark = "0.11"
 indexmap = "2.2"
 
 hyper = { version = "1.1", features = ["full"] }

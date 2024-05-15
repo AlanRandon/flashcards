@@ -1,6 +1,4 @@
 use base64::Engine;
-use itertools::Itertools;
-use pathfinder_export::Export;
 use tectonic::config::PersistentConfig;
 use tectonic::driver::ProcessingSessionBuilder;
 use tectonic::status::NoopStatusBackend;
@@ -10,8 +8,27 @@ use tectonic::{ctry, driver, errmsg};
 pub enum Error {
     #[error("Tectonic failed to compile TeX")]
     Tectonic(#[from] tectonic::Error),
-    #[error("Failed to convert pdf to image")]
-    Pdf(#[from] pdf::error::PdfError),
+    #[error("IO failed")]
+    IO(#[from] std::io::Error),
+}
+
+#[test]
+pub fn render_svg() {
+    let source = r#"
+\begin{tikzpicture}
+\coordinate (origin) at (0:0);
+\draw (origin) circle (1);
+\coordinate (a) at (70:1);
+\coordinate (b) at (150:1);
+\coordinate (c) at (270:1);
+\draw (a)--(b)--(c)--cycle;
+\draw (c)--([turn]-90:1);
+\draw (c)--([turn]90:1) coordinate (d);
+\draw pic["$x$",draw,angle radius=8,angle eccentricity=1.7] {angle=d--c--a};
+\draw pic["$x$",draw,angle radius=8,angle eccentricity=1.7] {angle=c--b--a};
+\end{tikzpicture}
+"#;
+    render(source).unwrap();
 }
 
 pub fn render(source: &str) -> Result<String, Error> {
@@ -33,49 +50,39 @@ pub fn render(source: &str) -> Result<String, Error> {
 }
 
 fn pdf_to_svg(data: &[u8]) -> Result<Vec<u8>, Error> {
-    std::env::set_var("STANDARD_FONTS", "dist/pdf-fonts");
-
-    let file = pdf::file::FileOptions::uncached().load(data)?;
-    let resolver = file.resolver();
-
-    let mut cache = pdf_render::Cache::new();
-    let mut backend = pdf_render::SceneBackend::new(&mut cache);
-
-    file.pages()
-        .map_ok(|page| {
-            pdf_render::render_page(
-                &mut backend,
-                &resolver,
-                &page,
-                #[allow(clippy::default_trait_access)]
-                {
-                    Default::default()
-                },
-            )
-        })
-        .collect::<Result<Result<Vec<_>, _>, _>>()??;
-
-    let scene = backend.finish();
-    let mut data = Vec::<u8>::new();
-    scene
-        .export(&mut data, pathfinder_export::FileFormat::SVG)
-        .unwrap();
-
-    Ok(data)
+    std::fs::write("./dist/flashcard.pdf", data)?;
+    std::process::Command::new("pdftocairo")
+        .args([
+            "./dist/flashcard.pdf",
+            "./dist/flashcard.svg",
+            "-svg",
+            "-f",
+            "0",
+            "-l",
+            "0",
+        ])
+        .status()
+        .expect("pdftocairo");
+    Ok(std::fs::read("./dist/flashcard.svg")?)
 }
 
 fn tex_to_pdf(source: &str) -> Result<Vec<u8>, Error> {
     let tex_input = format!(
         r#"
-\documentclass[border=5pt]{{standalone}}
+\documentclass{{standalone}}
 \usepackage{{chemfig}}
 \usepackage{{mhchem}}
+\usepackage{{tikz}}
+\usepackage{{adjustbox}}
+\usetikzlibrary{{angles,quotes,calc}}
 \usepackage{{xcolor}}
 \definecolor{{base}}{{HTML}}{{1e293b}}
 \begin{{document}}
 \pagecolor{{base}}
 \color{{white}}
+\trimbox{{-.5cm -.5cm -.5cm -.5cm}}{{
 {source}
+}}
 \end{{document}}
 "#
     );

@@ -39,6 +39,7 @@
   .tex {
     /* remove edges of pdf_render white background */
     clip-path: inset(1pt);
+    @apply min-w-[100px];
   }
 
   .btn-active {
