@@ -41,12 +41,6 @@ fn main() {
     let esbuild = format!("{bin}/esbuild src/init.ts --outfile=dist/init.js --bundle --minify");
     commands.push(esbuild);
 
-    let pdf_fonts_exists = std::fs::metadata("dist/pdf-fonts").unwrap().is_dir();
-    if !pdf_fonts_exists {
-        let pdf_fonts = "git clone https://github.com/s3bk/pdf_fonts dist/pdf-fonts";
-        commands.push(pdf_fonts.to_string());
-    }
-
     if cfg!(target_os = "windows") {
         for command in commands {
             Command::new("cmd")

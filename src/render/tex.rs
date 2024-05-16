@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use base64::Engine;
 use tectonic::config::PersistentConfig;
 use tectonic::driver::ProcessingSessionBuilder;
@@ -32,8 +34,24 @@ pub fn render_svg() {
 }
 
 pub fn render(source: &str) -> Result<String, Error> {
-    let data = tex_to_pdf(source)?;
-    let data = pdf_to_svg(&data)?;
+    let mut hash = std::hash::DefaultHasher::new();
+    source.hash(&mut hash);
+    let hash = hash.finish();
+    let output_path = std::path::PathBuf::from(format!("./dist/card-{hash}.svg"));
+
+    if !output_path.exists() {
+        let data = tex_to_pdf(source)?;
+
+        std::fs::write("./dist/flashcard.pdf", data)?;
+        std::process::Command::new("pdftocairo")
+            .arg("./dist/flashcard.pdf")
+            .arg(&output_path)
+            .args(["-svg", "-f", "0", "-l", "0"])
+            .status()
+            .expect("pdftocairo");
+    }
+
+    let data = std::fs::read(output_path)?;
 
     let engine = base64::engine::GeneralPurpose::new(
         &base64::alphabet::STANDARD,
@@ -47,23 +65,6 @@ pub fn render(source: &str) -> Result<String, Error> {
     Ok(format!(
         r#"<img src="data:image/svg+xml;base64,{data}" alt="{escaped_source}" title="{escaped_source}" class="tex">"#
     ))
-}
-
-fn pdf_to_svg(data: &[u8]) -> Result<Vec<u8>, Error> {
-    std::fs::write("./dist/flashcard.pdf", data)?;
-    std::process::Command::new("pdftocairo")
-        .args([
-            "./dist/flashcard.pdf",
-            "./dist/flashcard.svg",
-            "-svg",
-            "-f",
-            "0",
-            "-l",
-            "0",
-        ])
-        .status()
-        .expect("pdftocairo");
-    Ok(std::fs::read("./dist/flashcard.svg")?)
 }
 
 fn tex_to_pdf(source: &str) -> Result<Vec<u8>, Error> {
