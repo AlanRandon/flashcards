@@ -152,7 +152,10 @@ impl TryFrom<Card> for RenderedCard {
 fn render(side: &CardSide) -> Result<String, Error> {
     match side.format {
         CardFormat::Tex => Ok(tex::render(&side.text)?),
-        CardFormat::Markdown => Ok(markdown(&side.text)),
+        CardFormat::Markdown => Ok(format!(
+            "<div class=\"prose prose-slate prose-invert prose-xl\">{}</div>",
+            markdown(&side.text)
+        )),
     }
 }
 

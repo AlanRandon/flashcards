@@ -32,6 +32,7 @@
         hx-select="#study-container"
         hx-swap="outerHTML"
         hx-get="/study?name={{ topic }}&id={{ id }}"
+        hx-trigger="keyup[key=='k'] from:body, click"
         hidden
       >
         Previous
@@ -57,6 +58,7 @@
         hx-select="#study-container"
         hx-swap="outerHTML"
         hx-get="/study?name={{ topic }}&id={{ id }}"
+        hx-trigger="keyup[key=='j'] from:body, click"
         hidden
       >
         Next

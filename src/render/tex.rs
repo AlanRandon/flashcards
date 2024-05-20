@@ -63,7 +63,7 @@ pub fn render(source: &str) -> Result<String, Error> {
     pulldown_cmark_escape::escape_html(&mut escaped_source, source).unwrap();
 
     Ok(format!(
-        r#"<img src="data:image/svg+xml;base64,{data}" alt="{escaped_source}" title="{escaped_source}" class="tex">"#
+        r#"<img src="data:image/svg+xml;base64,{data}" alt="{escaped_source}" title="{escaped_source}" class="w-full h-full tex">"#
     ))
 }
 
@@ -73,6 +73,7 @@ fn tex_to_pdf(source: &str) -> Result<Vec<u8>, Error> {
 \documentclass{{standalone}}
 \usepackage{{chemfig}}
 \usepackage{{mhchem}}
+\usepackage{{circuitikz}}
 \usepackage{{tikz}}
 \usepackage{{adjustbox}}
 \usetikzlibrary{{angles,quotes,calc}}
