@@ -10,7 +10,7 @@ exclude = ["dep-installer-hack"]
 [dependencies]
 toml = "0.8"
 serde = { version = "1", features = ["derive", "rc"] }
-itertools = "0.12"
+itertools = "0.13"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
@@ -20,7 +20,6 @@ shuttle-runtime = "0.45"
 askama = { version = "0.12", features = ["mime", "mime_guess"] }
 router = { git = "https://github.com/AlanRandon/CLI-Apps" }
 
-tectonic = "0.15"
 pulldown-cmark-escape = "0.11"
 katex = "0.4"
 pulldown-cmark = "0.11"
@@ -35,3 +34,10 @@ http-serde = "2.0"
 cookie = { version = "0.18", features = ["secure", "percent-encode"] }
 hyper-staticfile = "0.10"
 serde_urlencoded = "0.7"
+
+# tectonic breaks on new icu
+tectonic = "0.15"
+tectonic_xetex_layout = "*"
+
+[patch.crates-io]
+tectonic = { git = "https://github.com/uncomfyhalomacro/tectonic", branch = "20240528-fix-build-for-xetex-layout" }

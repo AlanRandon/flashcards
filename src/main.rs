@@ -4,6 +4,7 @@ use collection::DocumentCollection;
 use itertools::Itertools;
 use render::RenderedCard;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::sync::Arc;
 
 mod collection;
@@ -24,16 +25,42 @@ pub struct CardSide {
     format: CardFormat,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Topic(Vec<Arc<str>>);
+
+impl Display for Topic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.join("/"))
+    }
+}
+
+impl Topic {
+    fn new(topic: &str) -> Self {
+        let segments = topic
+            .split('/')
+            .map(|segment| segment.to_string().into_boxed_str().into())
+            .collect::<Vec<_>>();
+
+        Self(segments)
+    }
+
+    fn push(&self, segment: Arc<str>) -> Self {
+        let mut segments = self.0.clone();
+        segments.push(segment);
+        Self(segments)
+    }
+}
+
 #[derive(Debug)]
 pub struct Card {
     term: CardSide,
     definition: CardSide,
-    topics: Vec<Arc<str>>,
+    topics: Vec<Topic>,
 }
 
 #[derive(Debug)]
 pub struct Topics {
-    topics: HashMap<Arc<str>, Vec<Arc<RenderedCard>>>,
+    topics: HashMap<Topic, Vec<Arc<RenderedCard>>>,
 }
 
 impl Topics {
@@ -42,7 +69,7 @@ impl Topics {
         for card in cards {
             for topic in &card.card.topics {
                 topics
-                    .entry(Arc::clone(topic))
+                    .entry(topic.clone())
                     .or_default()
                     .push(Arc::clone(card));
             }
@@ -51,8 +78,8 @@ impl Topics {
     }
 
     #[must_use]
-    pub fn get(&self, name: &str) -> Option<&[Arc<RenderedCard>]> {
-        self.topics.get(name).map(Vec::as_slice)
+    pub fn get(&self, topic: &Topic) -> Option<&[Arc<RenderedCard>]> {
+        self.topics.get(topic).map(Vec::as_slice)
     }
 }
 

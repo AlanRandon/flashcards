@@ -1,3 +1,5 @@
+use crate::Topic;
+
 use super::{response, Error, RenderedCard, Request, RequestExt, Response};
 use askama::Template;
 use http::StatusCode;
@@ -24,7 +26,7 @@ pub fn study(request: &Request<'req>) -> Response {
         ));
     };
 
-    let Some(topic) = request.context.topics.get(&query.name) else {
+    let Some(topic) = request.context.topics.get(&Topic::new(&query.name)) else {
         return response::no_cache(response::partial_if(
             &Error {
                 err: "Topic not found",

@@ -1,4 +1,5 @@
 use super::{response, Error, Request, RequestExt, Response};
+use crate::Topic;
 use askama::Template;
 use http::StatusCode;
 use itertools::Itertools;
@@ -9,18 +10,12 @@ use std::borrow::Cow;
 #[derive(Template)]
 #[template(path = "search.html")]
 struct Search<'a> {
-    topics: Vec<&'a str>,
+    topics: Vec<&'a Topic>,
 }
 
 #[get]
 pub fn index(request: &Request<'req>) -> Response {
-    let topics = request
-        .context
-        .topics
-        .topics
-        .keys()
-        .map(AsRef::as_ref)
-        .collect();
+    let topics = request.context.topics.topics.keys().collect();
 
     response::partial_if(&Search { topics }, StatusCode::OK, request.is_htmx())
 }
@@ -32,7 +27,7 @@ pub struct Query<'r> {
 
 #[post("search")]
 pub async fn search(request: &Request<'req>) -> Response {
-    let topics = request.context.topics.topics.keys().map(AsRef::as_ref);
+    let topics = request.context.topics.topics.keys();
 
     let Ok(body) = request.form::<Query>().await else {
         return response::partial_if(
@@ -53,12 +48,33 @@ pub async fn search(request: &Request<'req>) -> Response {
         //     query_parts.map(|query_part|)
         // }),
 
-        let match_score =
-            |topic| sublime_fuzzy::best_match(&body.q, topic).map(|score| score.score());
+        let match_score = |topic: &Topic| {
+            topic
+                .0
+                .iter()
+                .fold(None, |score, segment| {
+                    let score = match (
+                        score,
+                        sublime_fuzzy::best_match(&body.q, segment).map(|score| score.score()),
+                    ) {
+                        (Some(a), Some(b)) => a + b as f32,
+                        (Some(score), None) => score,
+                        (None, Some(score)) => score as f32,
+                        (None, None) => return None,
+                    };
+
+                    Some(score)
+                })
+                .map(|score| score / topic.0.len() as f32)
+        };
 
         topics
             .filter_map(|topic| match_score(topic).map(|score| (topic, score)))
-            .sorted_by(|(_, score_a), (_, score_b)| score_b.cmp(score_a))
+            .sorted_by(|(_, score_a), (_, score_b)| {
+                score_b
+                    .partial_cmp(score_a)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(topic, _)| topic)
             .collect_vec()
     };

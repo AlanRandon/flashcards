@@ -1,4 +1,4 @@
-use crate::Card;
+use crate::{Card, Topic};
 use itertools::Itertools;
 use std::path::Path;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ struct Document(Vec<Card>);
 pub enum DocumentCollection {
     Document(String),
     Collection {
-        topic: String,
+        topic: Arc<str>,
         entries: Vec<DocumentCollection>,
     },
     RootCollection {
@@ -48,7 +48,7 @@ impl DocumentCollection {
                 .try_collect()?;
 
             Ok(Self::Collection {
-                topic: name.to_string_lossy().to_string(),
+                topic: name.to_string_lossy().to_string().into_boxed_str().into(),
                 entries,
             })
         } else {
@@ -56,7 +56,7 @@ impl DocumentCollection {
                 return Ok(Self::Empty);
             };
             Ok(Self::Collection {
-                topic: stem.to_string_lossy().to_string(),
+                topic: stem.to_string_lossy().to_string().into_boxed_str().into(),
                 entries: vec![Self::Document(fs::read_to_string(path)?)],
             })
         }
@@ -64,21 +64,16 @@ impl DocumentCollection {
 }
 
 impl DocumentCollection {
-    fn into_cards(self, topics: &[Arc<str>]) -> Result<Vec<Card>, toml::de::Error> {
+    fn into_cards(self, topics: &[Topic]) -> Result<Vec<Card>, toml::de::Error> {
         match self {
             DocumentCollection::Document(data) => {
                 Ok(Document::deserialize_toml_with_topics(&data, topics)?.0)
             }
             DocumentCollection::Collection { topic, entries } => {
-                let topic: Arc<str> = format!(
-                    "{}{topic}",
-                    match topics.last() {
-                        None => String::new(),
-                        Some(topic) => format!("{topic}/"),
-                    }
-                )
-                .into_boxed_str()
-                .into();
+                let topic = match topics.last() {
+                    None => Topic::new(&topic),
+                    Some(last) => last.push(topic),
+                };
 
                 let mut topics = topics.to_owned();
                 topics.push(topic);

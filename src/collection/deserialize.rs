@@ -1,14 +1,13 @@
 use super::Document;
-use crate::{Card, CardFormat, CardSide};
+use crate::{Card, CardFormat, CardSide, Topic};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
-use std::sync::Arc;
 use toml::Table;
 
 impl Document {
     pub fn deserialize_with_topics<'de, D>(
         deserializer: D,
-        topics: &[Arc<str>],
+        topics: &[Topic],
     ) -> Result<Document, D::Error>
     where
         D: Deserializer<'de>,
@@ -19,8 +18,10 @@ impl Document {
         topics.extend(
             table
                 .remove("topics")
-                .map_or(Ok(Vec::new()), Vec::<Arc<str>>::deserialize)
-                .map_err(Error::custom)?,
+                .map_or(Ok(Vec::new()), Vec::<String>::deserialize)
+                .map_err(Error::custom)?
+                .iter()
+                .map(|topic| Topic::new(topic)),
         );
 
         let mut cards = table
@@ -37,7 +38,7 @@ impl Document {
 
     pub fn deserialize_toml_with_topics(
         document: &str,
-        topics: &[Arc<str>],
+        topics: &[Topic],
     ) -> Result<Self, toml::de::Error> {
         Self::deserialize_with_topics(toml::de::Deserializer::new(document), topics)
     }
@@ -69,7 +70,8 @@ impl<'de> Deserialize<'de> for Card {
 
         let topics = table
             .remove("topics")
-            .map_or(Ok(Vec::new()), Vec::<Arc<str>>::deserialize)
+            .map_or(Ok(Vec::new()), Vec::<String>::deserialize)
+            .map(|topics| topics.iter().map(|topic| Topic::new(topic)).collect())
             .map_err(Error::custom)?;
 
         Ok(Self {

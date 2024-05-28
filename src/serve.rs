@@ -1,4 +1,4 @@
-use crate::{RenderedCard, Topics};
+use crate::{RenderedCard, Topic, Topics};
 use askama::Template;
 use http::StatusCode;
 use http_body_util::BodyExt;
@@ -75,7 +75,7 @@ fn view(request: &Request<'req>) -> Response {
         );
     };
 
-    let Some(cards) = request.context.topics.get(&query.name) else {
+    let Some(cards) = request.context.topics.get(&Topic::new(&query.name)) else {
         return response::partial_if(
             &Error {
                 err: "Set Not Found",
