@@ -885,7 +885,6 @@ dependencies = [
  "shuttle-runtime",
  "sublime_fuzzy",
  "tectonic",
- "tectonic_xetex_layout",
  "thiserror",
  "tokio",
  "toml 0.8.13",
@@ -4733,8 +4732,3 @@ dependencies = [
  "crossbeam-utils",
  "flate2",
 ]
-
-[[patch.unused]]
-name = "tectonic"
-version = "0.0.0-dev.0"
-source = "git+https://github.com/uncomfyhalomacro/tectonic?branch=20240528-fix-build-for-xetex-layout#22bbb5955aa6a06bf4ddbe60369882a1fbe9f50d"
