@@ -42,11 +42,10 @@ pub async fn search(request: &Request<'req>) -> Response {
     let topics = if body.q.is_empty() {
         topics.collect_vec()
     } else {
-        // let split = |ch: char| ch.is_whitespace() || ch == '/';
-        // let query_parts = body.q.split(split).collect::<Vec<_>>();
-        // topic.split(split).filter_map(|part| {
-        //     query_parts.map(|query_part|)
-        // }),
+        let query_segments = body
+            .q
+            .split(|ch: char| ch.is_whitespace() || ch == '/')
+            .collect::<Vec<_>>();
 
         let match_score = |topic: &Topic| {
             topic
@@ -55,7 +54,13 @@ pub async fn search(request: &Request<'req>) -> Response {
                 .fold(None, |score, segment| {
                     let score = match (
                         score,
-                        sublime_fuzzy::best_match(&body.q, segment).map(|score| score.score()),
+                        query_segments
+                            .iter()
+                            .flat_map(|query_segment| {
+                                sublime_fuzzy::best_match(&query_segment, segment)
+                            })
+                            .map(|score| score.score())
+                            .sum1::<isize>(),
                     ) {
                         (Some(a), Some(b)) => a + b as f32,
                         (Some(score), None) => score,
