@@ -76,7 +76,7 @@ fn tex_to_pdf(source: &str) -> Result<Vec<u8>, Error> {
 \usepackage{{circuitikz}}
 \usepackage{{tikz}}
 \usepackage{{adjustbox}}
-\usetikzlibrary{{angles,quotes,calc}}
+\usetikzlibrary{{angles,quotes,calc,cd,decorations,decorations.markings,optics,intersections,patterns,shapes.misc}}
 \usepackage{{xcolor}}
 \definecolor{{base}}{{HTML}}{{1e293b}}
 \begin{{document}}
