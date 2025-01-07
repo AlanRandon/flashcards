@@ -32,7 +32,7 @@
           nativeBuildInputs = with pkgs; [ pkg-config ];
           buildInputs = libraries;
           LD_LIBRARY_PATH = lib.makeLibraryPath libraries;
-          shellHook = "exec \${SHELL:=sh}";
+          shellHook = "exec zsh";
         };
     };
 }
