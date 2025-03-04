@@ -69,7 +69,7 @@ pub fn render(source: &str) -> Result<String, Error> {
 
 fn tex_to_pdf(source: &str) -> Result<Vec<u8>, Error> {
     let tex_input = format!(
-        r#"
+        r"
 \documentclass{{standalone}}
 \usepackage{{chemfig}}
 \usepackage{{mhchem}}
@@ -86,7 +86,7 @@ fn tex_to_pdf(source: &str) -> Result<Vec<u8>, Error> {
 {source}
 }}
 \end{{document}}
-"#
+"
     );
 
     let config = ctry!(

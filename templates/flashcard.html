@@ -1,18 +1,18 @@
-<label class="w-full h-full">
+<label class="w-full h-full perspective-normal translate-z-2">
   <input type="checkbox" class="peer hidden" data-flashcard-toggle />
   <div
-    class="relative transition-[rotate] duration-500 peer-checked:[rotate:x_180deg] [perspective:1000px] [transform-style:preserve-3d] w-full h-full min-h-[10em] min-w-[25ch]"
+    class="relative transition-transform duration-500 peer-checked:rotate-x-180 transform-3d w-full h-full min-h-[10em] min-w-[25ch]"
     data-flashcard
   >
     <div
-      class="grid place-items-center overflow-auto hyphens-auto card cursor-pointer absolute inset-0 [backface-visibility:hidden]"
+      class="grid place-items-center overflow-auto hyphens-auto card cursor-pointer absolute inset-0 backface-hidden"
       data-term
       hx-disable="true"
     >
       {{ card.term|safe }}
     </div>
     <div
-      class="grid place-items-center overflow-auto hyphens-auto card cursor-pointer absolute inset-0 [backface-visibility:hidden] [rotate:x_180deg]"
+      class="grid place-items-center overflow-auto hyphens-auto card cursor-pointer absolute inset-0 backface-hidden rotate-x-180"
       data-definition
       hx-disable="true"
     >

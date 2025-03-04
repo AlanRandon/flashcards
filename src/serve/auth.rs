@@ -1,4 +1,4 @@
-use super::{response, Request, RequestExt, Response};
+use super::{Request, RequestExt, Response, response};
 use askama::Template;
 use http::{Method, StatusCode};
 use serde::Deserialize;
@@ -38,7 +38,7 @@ pub async fn login<'a, F: Future<Output = Response>>(
                         .header("Location", location.to_string())
                         .body(http_body_util::Full::default())
                         .unwrap();
-                };
+                }
             }
         }
 

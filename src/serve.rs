@@ -1,4 +1,5 @@
-use crate::{RenderedCard, Topic, Topics};
+use crate::collection::deserialize::Topic;
+use crate::{RenderedCard, Topics};
 use askama::Template;
 use http::StatusCode;
 use http_body_util::BodyExt;

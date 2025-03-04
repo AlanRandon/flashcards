@@ -18,7 +18,7 @@ const config = {
         useHash: true,
       },
     ],
-    tailwindcss: {},
+    "@tailwindcss/postcss": {},
     autoprefixer: {},
     cssnano: {},
   },

@@ -1,6 +1,5 @@
-use crate::Topic;
-
-use super::{response, Error, RenderedCard, Request, RequestExt, Response};
+use super::{Error, RenderedCard, Request, RequestExt, Response, response};
+use crate::collection::deserialize::Topic;
 use askama::Template;
 use http::StatusCode;
 use rand::prelude::*;
@@ -37,8 +36,11 @@ pub fn study(request: &Request<'req>) -> Response {
     };
 
     let id = query.id.unwrap_or_else(|| {
-        let mut rng = thread_rng();
-        let id = rand::distributions::Uniform::new(0, topic.len()).sample(&mut rng);
+        let mut rng = rand::rng();
+        let id = rand::distr::Uniform::new(0, topic.len())
+            .unwrap()
+            .sample(&mut rng);
+
         query.id = Some(id);
         id
     });

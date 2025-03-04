@@ -1,7 +1,8 @@
 @import "katex/dist/katex.css";
-@tailwind base;
-@tailwind utilities;
-@tailwind components;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@plugin "@tailwindcss/forms";
+@config "../tailwind.config.ts";
 
 @layer base {
   :root {
@@ -17,37 +18,32 @@
   }
 }
 
+@utility auto-grid-* {
+  display: grid;
+  /* prettier-ignore */
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(--value([length]), 100%), 1fr)
+  );
+}
+
+@utility btn-active {
+  @apply bg-purple-800;
+}
+
+@utility btn-hover {
+  @apply bg-purple-400;
+}
+
 @layer components {
   :where(.card) {
     @apply rounded-sm bg-slate-800 p-4;
-  }
-
-  [data-flashcard]::after {
-    content: "";
-    @apply opacity-0 transition-[opacity] pointer-events-none inset-0 absolute duration-500;
-    background-image: radial-gradient(
-      circle at var(--x, 50%) var(--y, 50%),
-      theme("colors.purple.100"),
-      transparent
-    );
-  }
-
-  [data-flashcard]:is(:hover, :focus-within)::after {
-    @apply opacity-10;
   }
 
   .tex {
     /* remove edges of pdf_render white background */
     clip-path: inset(1pt);
     @apply min-w-[100px];
-  }
-
-  .btn-active {
-    @apply bg-purple-800;
-  }
-
-  .btn-hover {
-    @apply bg-purple-400;
   }
 
   :where(.btn),

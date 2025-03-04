@@ -1,5 +1,5 @@
-use super::{response, Error, Request, RequestExt, Response};
-use crate::Topic;
+use super::{Error, Request, RequestExt, Response, response};
+use crate::collection::deserialize::Topic;
 use askama::Template;
 use http::StatusCode;
 use itertools::Itertools;
@@ -15,7 +15,13 @@ struct Search<'a> {
 
 #[get]
 pub fn index(request: &Request<'req>) -> Response {
-    let topics = request.context.topics.topics.keys().collect();
+    let topics = request
+        .context
+        .topics
+        .topics
+        .keys()
+        .map(AsRef::as_ref)
+        .collect();
 
     response::partial_if(&Search { topics }, StatusCode::OK, request.is_htmx())
 }
@@ -27,7 +33,7 @@ pub struct Query<'r> {
 
 #[post("search")]
 pub async fn search(request: &Request<'req>) -> Response {
-    let topics = request.context.topics.topics.keys();
+    let topics = request.context.topics.topics.keys().map(AsRef::as_ref);
 
     let Ok(body) = request.form::<Query>().await else {
         return response::partial_if(
@@ -56,21 +62,26 @@ pub async fn search(request: &Request<'req>) -> Response {
                         score,
                         query_segments
                             .iter()
-                            .flat_map(|query_segment| {
-                                sublime_fuzzy::best_match(&query_segment, segment)
+                            .filter_map(|query_segment| {
+                                sublime_fuzzy::best_match(query_segment, segment)
                             })
                             .map(|score| score.score())
                             .sum1::<isize>(),
                     ) {
+                        #[allow(clippy::cast_precision_loss)]
                         (Some(a), Some(b)) => a + b as f32,
                         (Some(score), None) => score,
+                        #[allow(clippy::cast_precision_loss)]
                         (None, Some(score)) => score as f32,
                         (None, None) => return None,
                     };
 
                     Some(score)
                 })
-                .map(|score| score / topic.0.len() as f32)
+                .map(
+                    #[allow(clippy::cast_precision_loss)]
+                    |score| score / topic.0.len() as f32,
+                )
         };
 
         topics

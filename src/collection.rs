@@ -1,13 +1,13 @@
-use crate::{Card, Topic};
+use deserialize::Topic;
 use itertools::Itertools;
 use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
 
-mod deserialize;
+pub mod deserialize;
 
 #[derive(Debug)]
-struct Document(Vec<Card>);
+struct Document(Vec<deserialize::Card>);
 
 #[allow(clippy::module_name_repetitions)]
 pub enum DocumentCollection {
@@ -55,6 +55,7 @@ impl DocumentCollection {
             let Some(stem) = path.file_stem() else {
                 return Ok(Self::Empty);
             };
+
             Ok(Self::Collection {
                 topic: stem.to_string_lossy().to_string().into_boxed_str().into(),
                 entries: vec![Self::Document(fs::read_to_string(path)?)],
@@ -64,15 +65,17 @@ impl DocumentCollection {
 }
 
 impl DocumentCollection {
-    fn into_cards(self, topics: &[Topic]) -> Result<Vec<Card>, toml::de::Error> {
+    fn into_cards(self, topics: &[Arc<Topic>]) -> Result<Vec<deserialize::Card>, toml::de::Error> {
         match self {
-            DocumentCollection::Document(data) => {
-                Ok(Document::deserialize_toml_with_topics(&data, topics)?.0)
-            }
+            DocumentCollection::Document(data) => Ok(Document::deserialize_with_topics(
+                toml::de::Deserializer::new(&data),
+                topics,
+            )?
+            .0),
             DocumentCollection::Collection { topic, entries } => {
                 let topic = match topics.last() {
-                    None => Topic::new(&topic),
-                    Some(last) => last.push(topic),
+                    None => Arc::new(Topic::new(&topic)),
+                    Some(last) => Arc::new(last.push(topic)),
                 };
 
                 let mut topics = topics.to_owned();
@@ -94,10 +97,10 @@ impl DocumentCollection {
     }
 }
 
-impl TryFrom<DocumentCollection> for Vec<Card> {
+impl TryFrom<DocumentCollection> for Vec<deserialize::Card> {
     type Error = toml::de::Error;
 
-    fn try_from(collection: DocumentCollection) -> Result<Vec<Card>, Self::Error> {
+    fn try_from(collection: DocumentCollection) -> Result<Vec<deserialize::Card>, Self::Error> {
         DocumentCollection::into_cards(collection, &[])
     }
 }

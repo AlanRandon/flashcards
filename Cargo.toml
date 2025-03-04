@@ -1,11 +1,7 @@
 [package]
 name = "flashcards"
 version = "0.1.0"
-edition = "2021"
-
-[workspace]
-members = ["."]
-exclude = ["dep-installer-hack"]
+edition = "2024"
 
 [dependencies]
 toml = "0.8"
@@ -13,16 +9,16 @@ serde = { version = "1", features = ["derive", "rc"] }
 itertools = "0.14"
 thiserror = "2.0"
 tokio = { version = "1", features = ["full"] }
-rand = "0.8"
+rand = "0.9"
 base64 = "0.22"
 sublime_fuzzy = "0.7"
-shuttle-runtime = "0.50"
+shuttle-runtime = "0.52"
 askama = { version = "0.12", features = ["mime", "mime_guess"] }
 router = { git = "https://github.com/AlanRandon/CLI-Apps" }
 
 pulldown-cmark-escape = "0.11"
 katex = "0.4"
-pulldown-cmark = "0.12"
+pulldown-cmark = "0.13"
 indexmap = "2.2"
 
 hyper = { version = "1.1", features = ["full"] }
@@ -36,7 +32,7 @@ hyper-staticfile = "0.10"
 serde_urlencoded = "0.7"
 
 # tectonic breaks on new icu
-tectonic = { version = "0.15.0", features = ["external-harfbuzz"] }
+tectonic = { version = "0.0.0-dev.0", features = ["external-harfbuzz"] }
 
-# [patch.crates-io]
-# tectonic = { git = "https://github.com/uncomfyhalomacro/tectonic", branch = "20240528-fix-build-for-xetex-layout" }
+[patch.crates-io]
+tectonic = { git = "https://github.com/uncomfyhalomacro/tectonic", branch = "20240528-fix-build-for-xetex-layout" }

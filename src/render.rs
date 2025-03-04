@@ -1,4 +1,4 @@
-use crate::{Card, CardFormat, CardSide};
+use crate::collection::deserialize::{Card, CardFormat, CardSide};
 use pulldown_cmark as md;
 
 mod tex;
@@ -94,7 +94,7 @@ mod katex_scanner {
         Block(&'a str),
     }
 
-    impl<'a> Event<'a> {
+    impl Event<'_> {
         pub fn render(&self) -> katex::Result<String> {
             use katex::Opts;
 
