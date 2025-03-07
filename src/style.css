@@ -5,16 +5,16 @@
 @config "../tailwind.config.ts";
 
 @layer base {
+  * {
+    @apply box-border;
+  }
+
   :root {
-    @apply h-full;
+    @apply min-h-full h-full;
   }
 
   body {
-    @apply min-h-full flex flex-col items-stretch justify-start text-white bg-slate-900;
-  }
-
-  * {
-    @apply box-border;
+    @apply min-h-full h-full flex flex-col items-stretch justify-start text-white bg-slate-900 overflow-x-hidden;
   }
 }
 

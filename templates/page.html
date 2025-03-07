@@ -8,7 +8,7 @@
     <!-- prettier-ignore -->
     #}
     <style>
-      {{ crate::serve::response::STYLE_CSS }}
+      {{ crate::serve::response::STYLE_CSS|safe }}
     </style>
     <link
       rel="stylesheet"
@@ -33,7 +33,7 @@
     {{ template }}
     <script>
       // prettier-ignore
-      {{ crate::serve::response::INIT_JS }}
+      {{ crate::serve::response::INIT_JS|safe }}
     </script>
   </body>
 </html>

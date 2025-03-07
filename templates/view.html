@@ -1,11 +1,43 @@
 <main hx-boost="true" class="auto-grid-[25ch] gap-4 p-4" id="view-page">
   <div class="col-span-full grid place-items-center gap-2">
-    <h1 class="font-bold text-xl">{{ name }}</h1>
+    <h1 class="font-bold text-xl flex flex-row items-center">
+      {% for topic in topic.ancestors() %}
+      <a
+        href="/view?name={{ topic }}"
+        hx-target="main"
+        hx-select="main"
+        hx-swap="outerHTML show:window:top"
+        class="hover:underline focus:underline"
+      >
+        {{ topic.basename() }}
+      </a>
+      {% if loop.last %} {% if subtopics.len() > 0 %}
+      <span class="material-symbols-outlined">chevron_rightmore_horiz</span>
+      {% endif %} {% else %}
+      <span class="material-symbols-outlined">chevron_right</span>
+      {% endif %} {% endfor %}
+    </h1>
+
+    <div class="flex flex-row justify-center gap-2 flex-wrap">
+      {% if subtopics.len() > 0 %} {% for subtopic in subtopics %}
+      <a
+        href="/view?name={{ subtopic }}"
+        hx-target="main"
+        hx-select="main"
+        hx-swap="outerHTML show:window:top"
+        class="btn text-xs"
+      >
+        {{ subtopic }}
+      </a>
+      {% endfor %} {% endif %}
+    </div>
+
     {{ cards.len() }} cards
+
     <a
       hx-target="main"
       hx-swap="outerHTML show:window:top"
-      href="/study?name={{ name }}&id=0"
+      href="/study?name={{ topic }}&id=0"
       class="btn flex justify-center gap-4"
     >
       Study

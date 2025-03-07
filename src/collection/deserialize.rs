@@ -1,6 +1,7 @@
 use super::Document;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::Arc;
 use toml::Table;
@@ -43,13 +44,21 @@ impl Topic {
         segments.push(segment);
         Self(segments)
     }
+
+    pub fn basename(&self) -> &str {
+        self.0.last().expect("topics have at least 1 component")
+    }
+
+    pub fn ancestors(&self) -> impl Iterator<Item = Self> {
+        (1..=self.0.len()).map(|i| Self(self.0.get(0..i).unwrap().to_vec()))
+    }
 }
 
 #[derive(Debug)]
 pub struct Card {
     pub term: CardSide,
     pub definition: CardSide,
-    pub topics: Vec<Arc<Topic>>,
+    pub topics: HashSet<Arc<Topic>>,
 }
 
 impl Document {
@@ -79,6 +88,12 @@ impl Document {
 
         for card in &mut cards {
             card.topics.extend(topics.iter().cloned());
+            card.topics = card
+                .topics
+                .iter()
+                .flat_map(|topics| topics.ancestors().collect::<Vec<_>>())
+                .map(Arc::new)
+                .collect();
         }
 
         Ok(Document(cards))

@@ -61,7 +61,8 @@ pub struct TopicQuery<'r> {
 #[template(path = "view.html")]
 struct View<'a> {
     cards: Vec<&'a RenderedCard>,
-    name: &'a str,
+    topic: Topic,
+    subtopics: Vec<&'a Topic>,
 }
 
 #[get("view")]
@@ -76,7 +77,9 @@ fn view(request: &Request<'req>) -> Response {
         );
     };
 
-    let Some(cards) = request.context.topics.get(&Topic::new(&query.name)) else {
+    let topic = Topic::new(&query.name);
+
+    let Some(cards) = request.context.topics.get(&topic) else {
         return response::partial_if(
             &Error {
                 err: "Set Not Found",
@@ -86,10 +89,21 @@ fn view(request: &Request<'req>) -> Response {
         );
     };
 
+    let subtopics = request
+        .context
+        .topics
+        .topics
+        .keys()
+        .filter(|subtopic| subtopic.0.get(0..topic.0.len()) == Some(&topic.0))
+        .filter(|subtopic| subtopic.0.len() == topic.0.len() + 1)
+        .map(AsRef::as_ref)
+        .collect();
+
     response::partial_if(
         &View {
-            name: &query.name,
             cards: cards.iter().map(AsRef::as_ref).collect(),
+            topic,
+            subtopics,
         },
         StatusCode::OK,
         request.is_htmx(),

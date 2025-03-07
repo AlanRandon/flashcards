@@ -8,22 +8,24 @@
     hx-swap="outerHTML"
     hx-trigger="keyup changed delay:300ms from:find input, submit"
     hx-boost="false"
-    class="w-full grid place-items-center place-content-center"
+    class="w-full grid place-items-center"
   >
-    <label for="search" class="flex justify-center gap-2 w-full">
+    <label
+      for="search"
+      class="flex flex-row justify-center items-center gap-2 w-fit px-4 bg-purple-500 rounded-sm border-purple-500 transition-colors not-focus-within:hover:btn-hover focus-within:btn-active"
+    >
+      <div class="flex gap-4 items-center justify-center">
+        <input
+          id="search"
+          type="search"
+          name="q"
+          placeholder="Topic"
+          class="outline-none ring-transparent border-none p-2 bg-transparent placeholder:text-white"
+        />
+        <noscript><button type="submit" class="btn">Go</button></noscript>
+      </div>
       <span class="material-symbols-outlined">search</span>
-      <span class="grow">Search</span>
     </label>
-    <div class="flex gap-4 items-center justify-center">
-      <input
-        id="search"
-        type="search"
-        name="q"
-        placeholder="Topic"
-        class="border-purple-500 border-4 rounded-sm focus:ring-transparent focus:border-purple-800 border-b-purple-800 bg-purple-500 transition-colors p-2 bg-inherit placeholder:text-white/70 placeholder:italic"
-      />
-      <noscript><button type="submit" class="btn">Go</button></noscript>
-    </div>
   </form>
   <div id="topic-list" class="auto-grid-[25ch] gap-4">
     {% for topic in topics %}
