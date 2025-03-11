@@ -52,17 +52,23 @@ struct Error<'a> {
     err: &'a str,
 }
 
+const PAGE_SIZE: usize = 50;
+
 #[derive(Debug, Deserialize)]
 pub struct TopicQuery<'r> {
     name: Cow<'r, str>,
+    page: Option<usize>,
 }
 
 #[derive(Template)]
 #[template(path = "view.html")]
 struct View<'a> {
-    cards: Vec<&'a RenderedCard>,
     topic: Topic,
     subtopics: Vec<&'a Topic>,
+    cards: &'a [Arc<RenderedCard>],
+    card_number: usize,
+    page: usize,
+    max_page: usize,
 }
 
 #[get("view")]
@@ -99,11 +105,21 @@ fn view(request: &Request<'req>) -> Response {
         .map(AsRef::as_ref)
         .collect();
 
+    let card_number = cards.len();
+
+    let max_page = cards.len() / PAGE_SIZE;
+    let page = query.page.unwrap_or(0).min(max_page);
+    let cards =
+        &cards[(page * PAGE_SIZE).min(cards.len())..((page + 1) * PAGE_SIZE).min(cards.len())];
+
     response::partial_if(
         &View {
-            cards: cards.iter().map(AsRef::as_ref).collect(),
             topic,
             subtopics,
+            cards,
+            card_number,
+            page,
+            max_page,
         },
         StatusCode::OK,
         request.is_htmx(),

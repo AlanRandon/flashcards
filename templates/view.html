@@ -32,8 +32,6 @@
       {% endfor %} {% endif %}
     </div>
 
-    {{ cards.len() }} cards
-
     <a
       hx-target="main"
       hx-swap="outerHTML show:window:top"
@@ -43,6 +41,47 @@
       Study
       <span class="material-symbols-outlined">school</span>
     </a>
+
+    <div class="w-full flex flex-row justify-center items-center gap-4">
+      {% if page == 0 %}
+      <button class="btn flex justify-center opacity-80" disabled>
+        <span class="material-symbols-outlined">chevron_left</span>
+        Last
+      </button>
+      {% else %}
+      <a
+        href="/view?name={{ topic }}&page={{ page - 1 }}"
+        hx-target="main"
+        hx-select="main"
+        hx-swap="outerHTML show:window:top"
+        class="btn flex justify-center"
+      >
+        <span class="material-symbols-outlined">chevron_left</span>
+        Last
+      </a>
+      {% endif %}
+      <div class="grid place-items-center">
+        <div><b>{{ card_number }}</b> cards</div>
+        <div>Page <b>{{ page + 1 }}</b>/<b>{{ max_page + 1 }}</b></div>
+      </div>
+      {% if page == max_page %}
+      <button class="btn flex justify-center opacity-80" disabled>
+        Next
+        <span class="material-symbols-outlined">chevron_right</span>
+      </button>
+      {% else %}
+      <a
+        href="/view?name={{ topic }}&page={{ page + 1 }}"
+        hx-target="main"
+        hx-select="main"
+        hx-swap="outerHTML show:window:top"
+        class="btn flex justify-center"
+      >
+        Next
+        <span class="material-symbols-outlined">chevron_right</span>
+      </a>
+      {% endif %}
+    </div>
   </div>
   {% for card in cards %} {% include "flashcard.html" %} {% endfor %}
 </main>
