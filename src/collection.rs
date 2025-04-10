@@ -51,15 +51,19 @@ impl DocumentCollection {
                 topic: name.to_string_lossy().to_string().into_boxed_str().into(),
                 entries,
             })
-        } else {
-            let Some(stem) = path.file_stem() else {
-                return Ok(Self::Empty);
-            };
-
+        } else if path.extension() == Some(std::ffi::OsStr::new("toml")) {
             Ok(Self::Collection {
-                topic: stem.to_string_lossy().to_string().into_boxed_str().into(),
+                topic: path
+                    .file_stem()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+                    .into_boxed_str()
+                    .into(),
                 entries: vec![Self::Document(fs::read_to_string(path)?)],
             })
+        } else {
+            Ok(Self::Empty)
         }
     }
 }
