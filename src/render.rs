@@ -21,6 +21,15 @@ mod katex_scanner {
         }
     }
 
+    #[test]
+    fn katex_scanner_works() {
+        let mut scanner = Scanner::new("$a$b$$c$$");
+        assert_eq!(scanner.next().unwrap(), Event::Text(""));
+        assert_eq!(scanner.next().unwrap(), Event::Inline("a"));
+        assert_eq!(scanner.next().unwrap(), Event::Text("b"));
+        assert_eq!(scanner.next().unwrap(), Event::Block("c"));
+    }
+
     const INLINE_DELIMETER: &str = "$";
     const BLOCK_DELIMETER: &str = "$$";
 
@@ -36,19 +45,26 @@ mod katex_scanner {
 
             match self.state {
                 State::Text => {
-                    let text = if let Some(position) = input.find(BLOCK_DELIMETER) {
-                        let content = &input[..position];
-                        self.position += position + BLOCK_DELIMETER.len();
-                        self.state = State::Block;
-                        content
-                    } else if let Some(position) = input.find(INLINE_DELIMETER) {
-                        let content = &input[..position];
-                        self.position += position + INLINE_DELIMETER.len();
-                        self.state = State::Inline;
-                        content
-                    } else {
-                        self.position = self.input.len();
-                        input
+                    let text = match (input.find(INLINE_DELIMETER), input.find(BLOCK_DELIMETER)) {
+                        (None, Some(_)) => {
+                            unimplemented!("block delimeter should imply inline delimeter exists")
+                        }
+                        (Some(inline_start), Some(block_start)) if block_start <= inline_start => {
+                            let content = &input[..block_start];
+                            self.position += block_start + BLOCK_DELIMETER.len();
+                            self.state = State::Block;
+                            content
+                        }
+                        (Some(inline_start), _) => {
+                            let content = &input[..inline_start];
+                            self.position += inline_start + INLINE_DELIMETER.len();
+                            self.state = State::Inline;
+                            content
+                        }
+                        (None, None) => {
+                            self.position = self.input.len();
+                            input
+                        }
                     };
                     Some(Event::Text(text))
                 }
@@ -87,7 +103,7 @@ mod katex_scanner {
         Block,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Eq)]
     pub enum Event<'a> {
         Text(&'a str),
         Inline(&'a str),
