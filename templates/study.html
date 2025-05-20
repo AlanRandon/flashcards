@@ -6,22 +6,24 @@
   ></div>
   <div
     id="study-container"
-    class="flex justify-content-center flex-col gap-4 grow p-4"
+    class="flex justify-content-center flex-col gap-4 grow p-4 w-full"
   >
     <div class="flex flex-col gap-4 grow" id="study-flashcard">
       {% include "flashcard.html" %}
-      <div class="flex gap-4 items-center justify-center flex-wrap">
-        {% for topic in card.card.topics %}
-        <a
-          href="/view?name={{ topic }}"
-          hx-target="main"
-          hx-select="main"
-          hx-swap="outerHTML show:window:top"
-          class="btn text-xs"
-        >
-          {{ topic }}
-        </a>
-        {% endfor %}
+      <div class="grid place-items-center w-full">
+        <div class="grid grid-flow-col gap-4 overflow-x-auto snap-x max-w-full">
+          {% for topic in card.card.topics %}
+          <a
+            href="/view?name={{ topic }}"
+            hx-target="main"
+            hx-select="main"
+            hx-swap="outerHTML show:window:top"
+            class="btn text-xs w-max snap-normal snap-start"
+          >
+            {{ topic }}
+          </a>
+          {% endfor %}
+        </div>
       </div>
     </div>
     <div class="flex gap-4 items-center justify-center flex-wrap">
@@ -32,7 +34,7 @@
         hx-select="#study-container"
         hx-swap="outerHTML"
         hx-get="/study?name={{ topic }}&id={{ id }}"
-        hx-trigger="keyup[key=='k'] from:body, click"
+        hx-trigger="keyup[key=='h'] from:body, click"
       >
         Previous
         <span class="material-symbols-outlined">arrow_back</span>
@@ -44,7 +46,7 @@
         hx-select="#study-container"
         hx-swap="outerHTML"
         hx-get="/study?name={{ topic }}"
-        hx-trigger="keyup[key=='Enter'] from:body, click"
+        hx-trigger="keyup[key=='r'] from:body, click"
       >
         Random
         <span class="material-symbols-outlined">question_mark</span>
@@ -56,7 +58,7 @@
         hx-select="#study-container"
         hx-swap="outerHTML"
         hx-get="/study?name={{ topic }}&id={{ id }}"
-        hx-trigger="keyup[key=='j'] from:body, click"
+        hx-trigger="keyup[key=='l'||key=='Enter'] from:body, click"
       >
         Next
         <span class="material-symbols-outlined">arrow_forward</span>
