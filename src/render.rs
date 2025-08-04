@@ -1,4 +1,5 @@
 use crate::collection::deserialize::{Card, CardFormat, CardSide};
+use base64::Engine;
 use pulldown_cmark as md;
 
 mod tex;
@@ -151,6 +152,10 @@ pub struct RenderedCard {
 pub enum Error {
     #[error("Malformated TeX")]
     TexError(#[from] tex::Error),
+    #[error("Typst error")]
+    TypstAsLibError(#[from] typst_as_lib::TypstAsLibError),
+    #[error("Typst error")]
+    TypstError(ecow::vec::EcoVec<typst::diag::SourceDiagnostic>),
 }
 
 impl TryFrom<Card> for RenderedCard {
@@ -172,6 +177,36 @@ fn render(side: &CardSide) -> Result<String, Error> {
             "<div class=\"prose prose-slate prose-invert prose-xl\">{}</div>",
             markdown(&side.text)
         )),
+        CardFormat::Typst => {
+            let font_options = typst_as_lib::typst_kit_options::TypstKitFontOptions::new()
+                .include_embedded_fonts(true);
+
+            let engine = typst_as_lib::TypstEngine::builder()
+                .main_file(format!(
+                    r##"#set page(width: auto, height: auto, margin: 0pt, fill: rgb("#1e293b"))
+#set text(fill: white)
+{}"##,
+                    side.text
+                ))
+                .search_fonts_with(font_options)
+                .build();
+
+            let doc = engine.compile::<typst::layout::PagedDocument>().output?;
+            let data = typst_svg::svg_merged(&doc, typst::layout::Abs::zero());
+
+            let engine = base64::engine::GeneralPurpose::new(
+                &base64::alphabet::STANDARD,
+                base64::engine::GeneralPurposeConfig::new(),
+            );
+            let data = engine.encode(data);
+
+            let mut escaped_source = String::new();
+            pulldown_cmark_escape::escape_html(&mut escaped_source, &side.text).unwrap();
+
+            Ok(format!(
+                r#"<img src="data:image/svg+xml;base64,{data}" alt="{escaped_source}" title="{escaped_source}" class="w-full h-full typst">"#
+            ))
+        }
     }
 }
 

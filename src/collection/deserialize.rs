@@ -12,6 +12,7 @@ pub enum CardFormat {
     #[default]
     Markdown,
     Tex,
+    Typst,
 }
 
 #[derive(Debug)]

@@ -1,5 +1,0 @@
-[[rule]]
-include = ["data/**/*.toml"]
-
-[rule.schema]
-path = "./flashcards.json"

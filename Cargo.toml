@@ -33,6 +33,13 @@ serde_urlencoded = "0.7"
 
 # tectonic breaks on new icu
 tectonic = { version = "0.0.0-dev.0", features = ["external-harfbuzz"] }
+ecow = "0.2"
+typst-as-lib = { version = "0.14", features = [
+	"typst-kit-fonts",
+	"typst-kit-embed-fonts",
+] }
+typst-svg = "0.13"
+typst = "0.13"
 
 [patch.crates-io]
 tectonic = { git = "https://github.com/uncomfyhalomacro/tectonic", branch = "20240528-fix-build-for-xetex-layout" }
