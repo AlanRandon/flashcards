@@ -1,6 +1,6 @@
-use std::hash::{Hash, Hasher};
-
 use base64::Engine;
+use std::io::Write;
+use std::process::Stdio;
 use tectonic::config::PersistentConfig;
 use tectonic::driver::ProcessingSessionBuilder;
 use tectonic::status::NoopStatusBackend;
@@ -11,7 +11,9 @@ pub enum Error {
     #[error("Tectonic failed to compile TeX")]
     Tectonic(#[from] tectonic::Error),
     #[error("IO failed")]
-    IO(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
+    #[error("pdftocairo failed")]
+    PdfToCairo(std::process::ExitStatus),
 }
 
 #[test]
@@ -34,24 +36,26 @@ pub fn render_svg() {
 }
 
 pub fn render(source: &str) -> Result<String, Error> {
-    let mut hash = std::hash::DefaultHasher::new();
-    source.hash(&mut hash);
-    let hash = hash.finish();
-    let output_path = std::path::PathBuf::from(format!("./dist/card-{hash}.svg"));
+    let mut process = std::process::Command::new("pdftocairo")
+        .arg("-")
+        .args(["-", "-svg", "-f", "0", "-l", "0"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(Error::Io)?;
 
-    if !output_path.exists() {
-        let data = tex_to_pdf(source)?;
+    let mut stdin = process.stdin.take().expect("child to have stdin");
 
-        std::fs::write("./dist/flashcard.pdf", data)?;
-        std::process::Command::new("pdftocairo")
-            .arg("./dist/flashcard.pdf")
-            .arg(&output_path)
-            .args(["-svg", "-f", "0", "-l", "0"])
-            .status()
-            .expect("pdftocairo");
+    let data = tex_to_pdf(source)?;
+    stdin.write_all(&data).map_err(Error::Io)?;
+    stdin.flush().map_err(Error::Io)?;
+    drop(stdin);
+
+    let output = process.wait_with_output().map_err(Error::Io)?;
+    if !output.status.success() {
+        return Err(Error::PdfToCairo(output.status));
     }
-
-    let data = std::fs::read(output_path)?;
+    let data = output.stdout;
 
     let engine = base64::engine::GeneralPurpose::new(
         &base64::alphabet::STANDARD,

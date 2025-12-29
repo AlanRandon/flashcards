@@ -1,0 +1,23 @@
+[package]
+name = "flashcards_render"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+itertools.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+tectonic.workspace = true
+tokio.workspace = true
+toml.workspace = true
+base64 = "0.22"
+katex = "0.4"
+pulldown-cmark = "0.13"
+pulldown-cmark-escape = "0.11"
+ecow = "0.2"
+typst-as-lib = { version = "0.14", features = [
+	"typst-kit-fonts",
+	"typst-kit-embed-fonts",
+] }
+typst-svg = "0.13"
+typst = "0.13"

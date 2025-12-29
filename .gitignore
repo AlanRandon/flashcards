@@ -1,8 +1,8 @@
 /target
-/dep-installer-hack/target
-/dep-installer-hack/Secrets*.toml
-/node_modules
-/dist
-package-lock.json
+/**/node_modules
+/**/dist
+/dev.db
+/dev.db-wal
+/dev.db-shm
 Secrets*.toml
 .shuttle*

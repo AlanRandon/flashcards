@@ -10,21 +10,33 @@
     };
   };
 
-  outputs = { nixpkgs, fenix, flake-utils, ... }:
+  outputs =
+    {
+      nixpkgs,
+      fenix,
+      flake-utils,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (system: {
       devShells.default =
         let
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              (_: super: let pkgs = fenix.inputs.nixpkgs.legacyPackages.${super.system}; in fenix.overlays.default pkgs pkgs)
+              (
+                _: super:
+                let
+                  pkgs = fenix.inputs.nixpkgs.legacyPackages.${super.system};
+                in
+                fenix.overlays.default pkgs pkgs
+              )
             ];
           };
           libraries = with pkgs; [
-            stdenv.cc.cc
+            stdenv.cc
             openssl
             graphite2
-            icu
+            icu72
             freetype
             fontconfig
             harfbuzz
@@ -34,33 +46,35 @@
           toolchain = fenix.packages."${system}".complete.toolchain;
         in
         pkgs.mkShell {
-          nativeBuildInputs = (with pkgs; [
-            pkg-config
-            graphite2.dev
-            icu
-            freetype
-            fontconfig
-            harfbuzz
-          ]) ++ [
-            toolchain
-          ];
+          nativeBuildInputs =
+            (with pkgs; [
+              pkg-config
+              mold
+            ])
+            ++ [
+              toolchain
+            ];
+
+          buildInputs =
+            (with pkgs; [
+              poppler-utils
+            ])
+            ++ libraries;
 
           packages = [
-            pkgs.cargo-shuttle
             pkgs.rust-analyzer-nightly
+            pkgs.sqlx-cli
+            pkgs.sqlite
           ];
 
-          buildInputs = libraries;
+          DATABASE_URL = "sqlite:dev.db";
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath libraries;
         };
     });
 
   nixConfig = {
     extra-substituters = [
-      "https://nix-community.cachix.org"
-    ];
-    extra-trusted-public-keys = [
-      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      "https://nix-community.cachix.org" # "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
     ];
   };
 }

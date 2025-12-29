@@ -1,7 +1,0 @@
-name = "flashcards-alanrandon"
-
-[deploy]
-include = ["data/*", "dist/*"]
-
-[build]
-assets = ["data/*", "dist/*"]

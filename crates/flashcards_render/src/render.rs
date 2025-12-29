@@ -1,4 +1,4 @@
-use crate::collection::deserialize::{Card, CardFormat, CardSide};
+use crate::{Card, Format, Rendered, Source};
 use base64::Engine;
 use pulldown_cmark as md;
 
@@ -124,28 +124,7 @@ mod katex_scanner {
                 Self::Inline(content) => katex::render(content),
             }
         }
-
-        pub fn as_html(&self) -> String {
-            match self.render() {
-                Ok(result) => result,
-                Err(err) => {
-                    eprintln!("Katex error ignored: {err}");
-                    match self {
-                        Self::Text(text) => (*text).to_string(),
-                        Self::Block(content) => format!("$${content}$$"),
-                        Self::Inline(content) => format!("${content}$"),
-                    }
-                }
-            }
-        }
     }
-}
-
-#[derive(Debug)]
-pub struct RenderedCard {
-    pub card: Card,
-    pub term: String,
-    pub definition: String,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -156,28 +135,47 @@ pub enum Error {
     TypstAsLibError(#[from] typst_as_lib::TypstAsLibError),
     #[error("Typst error")]
     TypstError(ecow::vec::EcoVec<typst::diag::SourceDiagnostic>),
+    #[error("KaTeX error")]
+    KatexError(#[from] katex::Error),
 }
 
-impl TryFrom<Card> for RenderedCard {
+impl TryFrom<Card<Source>> for Card<Rendered> {
     type Error = Error;
 
-    fn try_from(card: Card) -> Result<Self, Self::Error> {
+    fn try_from(card: Card<Source>) -> Result<Self, Self::Error> {
         Ok(Self {
-            term: render(&card.term)?,
-            definition: render(&card.definition)?,
-            card,
+            term: Rendered {
+                html: render(&card.term)?,
+                source: card.term,
+            },
+            definition: Rendered {
+                html: render(&card.definition)?,
+                source: card.definition,
+            },
+            topics: card.topics,
         })
     }
 }
 
-fn render(side: &CardSide) -> Result<String, Error> {
+impl TryFrom<Source> for Rendered {
+    type Error = Error;
+
+    fn try_from(source: Source) -> Result<Self, Self::Error> {
+        Ok(Rendered {
+            html: render(&source)?,
+            source,
+        })
+    }
+}
+
+fn render(side: &Source) -> Result<String, Error> {
     match side.format {
-        CardFormat::Tex => Ok(tex::render(&side.text)?),
-        CardFormat::Markdown => Ok(format!(
+        Format::Tex => Ok(tex::render(&side.source)?),
+        Format::Markdown => Ok(format!(
             "<div class=\"prose prose-slate prose-invert prose-xl\">{}</div>",
-            markdown(&side.text)
+            markdown(&side.source)?
         )),
-        CardFormat::Typst => {
+        Format::Typst => {
             let font_options = typst_as_lib::typst_kit_options::TypstKitFontOptions::new()
                 .include_embedded_fonts(true);
 
@@ -186,7 +184,7 @@ fn render(side: &CardSide) -> Result<String, Error> {
                     r##"#set page(width: auto, height: auto, margin: 0pt, fill: rgb("#1e293b"))
 #set text(fill: white)
 {}"##,
-                    side.text
+                    side.source
                 ))
                 .search_fonts_with(font_options)
                 .build();
@@ -201,7 +199,7 @@ fn render(side: &CardSide) -> Result<String, Error> {
             let data = engine.encode(data);
 
             let mut escaped_source = String::new();
-            pulldown_cmark_escape::escape_html(&mut escaped_source, &side.text).unwrap();
+            pulldown_cmark_escape::escape_html(&mut escaped_source, &side.source).unwrap();
 
             Ok(format!(
                 r#"<img src="data:image/svg+xml;base64,{data}" alt="{escaped_source}" title="{escaped_source}" class="w-full h-full typst">"#
@@ -210,12 +208,14 @@ fn render(side: &CardSide) -> Result<String, Error> {
     }
 }
 
-pub fn markdown(text: &str) -> String {
+pub fn markdown(text: &str) -> katex::Result<String> {
     let scanner = katex_scanner::Scanner::new(text);
-    let text = scanner.map(|event| event.as_html()).collect::<String>();
+    let text = scanner
+        .map(|event| event.render())
+        .collect::<katex::Result<String>>()?;
     let parser = md::Parser::new_ext(&text, md::Options::ENABLE_TABLES);
 
     let mut result = String::new();
     md::html::push_html(&mut result, parser);
-    result
+    Ok(result)
 }

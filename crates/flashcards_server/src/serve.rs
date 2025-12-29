@@ -1,5 +1,3 @@
-use crate::collection::deserialize::Topic;
-use crate::{RenderedCard, Topics};
 use askama::Template;
 use http::StatusCode;
 use http_body_util::BodyExt;
@@ -135,7 +133,7 @@ pub struct App {
 
 impl App {
     #[allow(clippy::too_many_lines)]
-    async fn run(self, addr: std::net::SocketAddr) -> Result<(), shuttle_runtime::Error> {
+    pub async fn run(self, addr: std::net::SocketAddr) -> anyhow::Result<()> {
         use hyper::service::service_fn;
         use hyper_util::rt::{TokioExecutor, TokioIo};
         use hyper_util::server::conn::auto;
@@ -256,24 +254,6 @@ impl App {
 
         println!("Listening on {addr}");
 
-        listen.await.unwrap()
-    }
-}
-
-impl shuttle_runtime::Service for App {
-    fn bind<'async_trait>(
-        self,
-        addr: std::net::SocketAddr,
-    ) -> core::pin::Pin<
-        Box<
-            dyn core::future::Future<Output = Result<(), shuttle_runtime::Error>>
-                + Send
-                + 'async_trait,
-        >,
-    >
-    where
-        Self: 'async_trait,
-    {
-        Box::pin(self.run(addr))
+        Ok(listen.await?)
     }
 }
