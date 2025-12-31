@@ -81,14 +81,8 @@ fn tex_to_pdf(source: &str) -> Result<Vec<u8>, Error> {
 \usepackage{{tikz}}
 \usepackage{{adjustbox}}
 \usetikzlibrary{{angles,quotes,calc,cd,decorations,decorations.markings,optics,intersections,patterns,shapes.misc}}
-\usepackage{{xcolor}}
-\definecolor{{base}}{{HTML}}{{1e293b}}
 \begin{{document}}
-\pagecolor{{base}}
-\color{{white}}
-\trimbox{{-.5cm -.5cm -.5cm -.5cm}}{{
 {source}
-}}
 \end{{document}}
 "
     );

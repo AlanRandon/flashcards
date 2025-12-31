@@ -65,6 +65,10 @@
             pkgs.rust-analyzer-nightly
             pkgs.sqlx-cli
             pkgs.sqlite
+            pkgs.tailwindcss_4
+            pkgs.esbuild
+            pkgs.nodejs
+            pkgs.djlint
           ];
 
           DATABASE_URL = "sqlite:dev.db";

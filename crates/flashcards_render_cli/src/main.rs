@@ -1,25 +1,26 @@
+use clap::Parser;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::str::FromStr;
 use std::sync::Arc;
 
 #[derive(Debug, thiserror::Error)]
 enum Error {
-    #[error("error loading cards")]
+    #[error("error loading cards: {0}")]
     Io(#[from] std::io::Error),
-    #[error("error deserializing cards")]
+    #[error("error deserializing cards at {path}: {err}")]
     Deserialize {
         path: PathBuf,
         #[source]
         err: toml::de::Error,
     },
-    #[error("error rendering card at {path}")]
+    #[error("error rendering card at {path}: {err}")]
     Render {
         path: PathBuf,
         #[source]
@@ -27,6 +28,8 @@ enum Error {
     },
     #[error("error accessing database: {0}")]
     Sqlx(#[from] sqlx::Error),
+    #[error("invalid utf8 in path")]
+    NonUtf8Path(PathBuf),
 }
 
 #[derive(Debug)]
@@ -142,30 +145,16 @@ async fn insert_card_topics(
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> ExitCode {
-    let progress = MultiProgress::new();
-
-    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| todo!());
-    let pool = Arc::new(
-        SqlitePool::connect_with(
-            SqliteConnectOptions::from_str(&database_url).unwrap_or_else(|_| todo!()),
-        )
-        .await
-        .unwrap_or_else(|_| todo!()),
-    );
-
-    sqlx::migrate!("../../migrations")
-        .run(pool.as_ref())
-        .await
-        .unwrap_or_else(|err| todo!("{}", err));
-
+async fn load(
+    path: impl AsRef<Path>,
+    progress: &MultiProgress,
+) -> Result<Vec<Card<flashcards_render::Source>>, Error> {
     let load_progess = ProgressBar::new_spinner()
         .with_style(ProgressStyle::with_template("{msg} {spinner}").unwrap())
         .with_message(section_title("Loading", SectionTitleState::Processing));
     let load_progress = progress.add(load_progess);
 
-    let cards = flashcards_render::loader::load_dir("data")
+    let cards = flashcards_render::loader::load_dir(path)
         .map(|result| -> Result<_, Error> {
             load_progress.inc(1);
 
@@ -185,13 +174,27 @@ async fn main() -> ExitCode {
             }))
         })
         .flatten_ok()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap_or_else(|_| todo!());
+        .collect::<Result<Vec<_>, _>>()?;
 
     load_progress.finish();
     progress.remove(&load_progress);
     _ = progress.println(section_title("Loaded", SectionTitleState::Done));
 
+    Ok(cards)
+}
+
+struct RenderedCard {
+    term: i64,
+    definition: i64,
+    topics: HashSet<Arc<flashcards_render::Topic>>,
+    path: Arc<PathBuf>,
+}
+
+async fn render(
+    pool: Arc<SqlitePool>,
+    cards: Vec<Card<flashcards_render::Source>>,
+    progress: &MultiProgress,
+) -> Result<Vec<RenderedCard>, Error> {
     let render_progress = ProgressBar::new(
         cards
             .len()
@@ -201,15 +204,14 @@ async fn main() -> ExitCode {
     .with_style(bar_style("Rendering"));
     let render_progress = progress.add(render_progress);
 
-    let mut render_jobs = tokio::task::JoinSet::new();
+    let mut render_jobs = tokio::task::JoinSet::<Result<_, Error>>::new();
     for card in cards {
         let render_progress = render_progress.clone();
         let pool = Arc::clone(&pool);
         render_jobs.spawn(async move {
             let term =
                 render_source_cached(card.card.term, card.path.as_path(), &pool, &render_progress)
-                    .await
-                    .unwrap_or_else(|err| todo!("{err:?}"));
+                    .await?;
 
             let definition = render_source_cached(
                 card.card.definition,
@@ -217,62 +219,139 @@ async fn main() -> ExitCode {
                 &pool,
                 &render_progress,
             )
-            .await
-            .unwrap_or_else(|err| todo!("{err:?}"));
+            .await?;
 
             render_progress.inc(1);
 
-            (card.path, card.card.topics, term, definition)
+            Ok(RenderedCard {
+                path: card.path,
+                topics: card.card.topics,
+                term,
+                definition,
+            })
         });
     }
 
-    let cards = render_jobs.join_all().await;
+    let mut cards = Vec::new();
+    while let Some(result) = render_jobs.join_next().await {
+        let card = result.expect("render job not to panic or be cancelled")?;
+        cards.push(card);
+    }
 
     progress.remove(&render_progress);
     _ = progress.println(section_title("Rendered", SectionTitleState::Done));
 
-    let indexing_progress = ProgressBar::new(
+    Ok(cards)
+}
+
+async fn index(
+    pool: &SqlitePool,
+    cards: &[RenderedCard],
+    progress: &MultiProgress,
+) -> Result<(), Error> {
+    let index_progress = ProgressBar::new(
         cards
             .len()
             .try_into()
             .expect("number of cards to fit in u64"),
     )
     .with_style(bar_style("Indexing"));
-    let indexing_progress = progress.add(indexing_progress);
+    let index_progress = progress.add(index_progress);
 
-    for (path, topics, term, definition) in cards {
+    sqlx::query!("DELETE FROM card_topic")
+        .execute(&*pool)
+        .await?;
+
+    sqlx::query!("DELETE FROM topic").execute(&*pool).await?;
+
+    let compiled_time = chrono::Utc::now();
+
+    for card in cards {
         let mut hasher = std::hash::DefaultHasher::new();
-        term.hash(&mut hasher);
-        definition.hash(&mut hasher);
-        for topic in topics.iter() {
+        card.term.hash(&mut hasher);
+        card.definition.hash(&mut hasher);
+        for topic in card.topics.iter() {
             topic.hash(&mut hasher);
         }
         let hash = i64::from_ne_bytes(hasher.finish().to_ne_bytes());
 
-        let path = path
+        let path = card
+            .path
             .to_str()
-            .unwrap_or_else(|| todo!("path is invalid unicode"));
+            .ok_or_else(|| Error::NonUtf8Path(card.path.to_path_buf()))?;
 
         sqlx::query!(
-            "INSERT OR REPLACE INTO card (hash, term, definition, source_path) VALUES (?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO card (hash, term, definition, source_path, compiled_at) VALUES (?, ?, ?, ?, ?)",
             hash,
-            term,
-            definition,
+            card.term,
+            card.definition,
             path,
+            compiled_time,
         )
-        .execute(pool.as_ref())
-        .await
-        .unwrap_or_else(|err| todo!("{err:?}"));
+        .execute(&*pool)
+        .await?;
 
-        insert_card_topics(&topics, hash, &pool)
-            .await
-            .unwrap_or_else(|err| todo!("{err:?}"));
+        insert_card_topics(&card.topics, hash, &pool).await?;
 
-        indexing_progress.inc(1);
+        index_progress.inc(1);
     }
 
-    progress.remove(&render_progress);
+    sqlx::query!("DELETE FROM card WHERE compiled_at != ?", compiled_time)
+        .execute(&*pool)
+        .await?;
+
+    progress.remove(&index_progress);
     _ = progress.println(section_title("Indexed", SectionTitleState::Done));
+
+    Ok(())
+}
+
+async fn run(pool: Arc<SqlitePool>, path: impl AsRef<Path>) -> Result<(), Error> {
+    let progress = MultiProgress::new();
+
+    let cards = load(&path, &progress).await?;
+    let cards = render(Arc::clone(&pool), cards, &progress).await?;
+    index(&pool, &cards, &progress).await?;
+
+    Ok(())
+}
+
+fn report_error(err: impl Display) {
+    eprintln!("\u{1b}[31;1merror\u{1b}[0m: {err}")
+}
+
+#[derive(Parser)]
+struct Cli {
+    #[arg(short, long, env = "DATABASE_URL")]
+    database_url: SqliteConnectOptions,
+    #[arg(default_value = "data")]
+    input: PathBuf,
+}
+
+#[tokio::main]
+async fn main() -> ExitCode {
+    let cli = Cli::parse();
+
+    let pool = match SqlitePool::connect_with(cli.database_url)
+        .await
+        .map(Arc::new)
+    {
+        Ok(pool) => pool,
+        Err(err) => {
+            report_error(format!("failed to connect to database: {err}",));
+            return ExitCode::FAILURE;
+        }
+    };
+
+    if let Err(err) = sqlx::migrate!("../../migrations").run(pool.as_ref()).await {
+        report_error(format!("failed run database migrations: {err}"));
+        return ExitCode::FAILURE;
+    }
+
+    if let Err(err) = run(pool, "data").await {
+        report_error(err);
+        return ExitCode::FAILURE;
+    }
 
     ExitCode::SUCCESS
 }

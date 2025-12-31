@@ -1,0 +1,29 @@
+{% macro header(ancestors, hash) %}
+    <div class="m-4 mb-0 flex gap-4">
+        <div class="grow p-4 bg-rose-500 text-white border-4 border-stone-900">
+            <h1 class="font-bold inline-flex gap-2">
+                {% for (i, topic) in ancestors.iter().enumerate() %}
+                    <a href="/view/{{ topic.hash }}">{{ topic.name }}</a>
+                    {% if i + 1 != ancestors.len() %}<span>/</span>{% endif %}
+                {% endfor %}
+            </h1>
+        </div>
+        <a class="btn grid place-items-center" href="/view/{{ hash }}">View</a>
+        <a class="btn grid place-items-center" href="/study/{{ hash }}">Study</a>
+        <a class="btn grid place-items-center" href="/">Home</a>
+    </div>
+{% endmacro %}
+{% macro flashcard(card) %}
+    <label class="w-full h-full perspective-distant">
+        <input type="checkbox" class="peer hidden" data-flashcard-toggle />
+        <div class="relative transition-transform duration-500 peer-checked:rotate-y-180 transform-3d w-full h-full min-h-[10em] min-w-[25ch]"
+             data-flashcard>
+            <div class="grid place-items-center overflow-auto hyphens-auto cursor-pointer absolute inset-0 backface-hidden p-4 card"
+                 data-term
+                 hx-disable="true">{{ card.term|safe }}</div>
+            <div class="grid place-items-center overflow-auto hyphens-auto cursor-pointer absolute inset-0 backface-hidden rotate-y-180 p-4 card"
+                 data-definition
+                 hx-disable="true">{{ card.definition|safe }}</div>
+        </div>
+    </label>
+{% endmacro %}

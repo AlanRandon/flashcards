@@ -27,6 +27,7 @@ CREATE TABLE card (
 	term INTEGER NOT NULL,
 	definition INTEGER NOT NULL,
 	source_path TEXT NOT NULL,
+	compiled_at DATETIME NOT NULL,
 	FOREIGN KEY (term) REFERENCES rendered (hash),
 	FOREIGN KEY (definition) REFERENCES rendered (hash)
 );

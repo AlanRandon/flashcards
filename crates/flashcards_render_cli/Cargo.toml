@@ -10,9 +10,10 @@ toml.workspace = true
 log.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
+chrono.workspace = true
 flashcards_render = { path = "../flashcards_render" }
 rayon = "1.11"
 pretty_env_logger = "0.5"
 indicatif = "0.18"
-indicatif-log-bridge = "0.2"
-tokio-rayon = "2.1.0"
+tokio-rayon = "2.1"
+clap = { version = "4.5", features = ["derive", "env"] }

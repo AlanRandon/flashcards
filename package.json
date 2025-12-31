@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "katex": "^0.16.21",
+    "htmx.org": "^1.9.5"
+  }
+}

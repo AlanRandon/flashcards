@@ -1,81 +1,26 @@
-<main class="flex grow" id="study-page">
-  <div
-    hidden
-    hx-trigger="keyup[key==' '] from:body"
-    hx-on::trigger="this.parentElement.querySelector('[data-flashcard-toggle]').checked ^= true"
-  ></div>
-  <div
-    id="study-container"
-    class="flex justify-content-center flex-col gap-4 grow p-4 w-full"
-  >
-    <div class="flex flex-col gap-4 grow" id="study-flashcard">
-      {% include "flashcard.html" %}
-      <div class="grid place-items-center w-full">
-        <div class="grid grid-flow-col gap-4 overflow-x-auto snap-x max-w-full">
-          {% for topic in card.card.topics %}
-          <a
-            href="/view?name={{ topic }}"
-            hx-target="main"
-            hx-select="main"
-            hx-swap="outerHTML show:window:top"
-            class="btn text-xs w-max snap-normal snap-start"
-          >
-            {{ topic }}
-          </a>
-          {% endfor %}
-        </div>
-      </div>
+{% extends "base.html" %}
+{% import "macros.html" as macros %}
+{% block content %}
+    {{ macros::header(topic_ancestors, topic_hash) }}
+    <div class="w-full h-full p-4">{{ macros::flashcard(card) }}</div>
+    <div class="overflow-x-scroll w-full px-4 h-24 grid place-items-center hide-scrollbar">
+        <ul class="flex gap-4 w-max items-center justify-center">
+            {% for topic in topics %}<a class="btn w-max" href="/view/{{ topic.hash }}">{{ topic.name }}</a>{% endfor %}
+        </ul>
     </div>
-    <div class="flex gap-4 items-center justify-center flex-wrap">
-      {% if let Some(id) = previous_card_id %}
-      <button
-        class="btn flex justify-center gap-2"
-        hx-target="#study-container"
-        hx-select="#study-container"
-        hx-swap="outerHTML"
-        hx-get="/study?name={{ topic }}&id={{ id }}"
-        hx-trigger="keyup[key=='h'] from:body, click"
-      >
-        Previous
-        <span class="material-symbols-outlined">arrow_back</span>
-      </button>
-      {% endif %}
-      <button
-        class="btn flex justify-center gap-2"
-        hx-target="#study-container"
-        hx-select="#study-container"
-        hx-swap="outerHTML"
-        hx-get="/study?name={{ topic }}"
-        hx-trigger="keyup[key=='r'] from:body, click"
-      >
-        Random
-        <span class="material-symbols-outlined">question_mark</span>
-      </button>
-      {% if let Some(id) = next_card_id %}
-      <button
-        class="btn flex justify-center gap-2"
-        hx-target="#study-container"
-        hx-select="#study-container"
-        hx-swap="outerHTML"
-        hx-get="/study?name={{ topic }}&id={{ id }}"
-        hx-trigger="keyup[key=='l'||key=='Enter'] from:body, click"
-      >
-        Next
-        <span class="material-symbols-outlined">arrow_forward</span>
-      </button>
-      {% endif %}
-      <label
-        hx-on:click="const e = this.closest('#study-container').querySelector('[data-flashcard]'); wordify(e); e.classList.toggle('word-show-only-first-letter', this.querySelector('input').checked)"
-        class="flex gap-2 items-center"
-      >
-        First Letters
-        <div class="box-content h-[1em] w-[3ch] flex btn px-2">
-          <input type="checkbox" class="hidden peer" id="first-letters" />
-          <div
-            class="h-[1em] aspect-square bg-purple-50 rounded-sm transition-all peer-checked:ml-[100%] peer-checked:translate-x-[-100%]"
-          ></div>
-        </div>
-      </label>
+    <div class="m-4 flex gap-4 items-center justify-center">
+        {% if index > 0 %}
+            <a href="/study/{{ topic_hash }}?index={{ index - 1 }}"
+               class="btn grid place-items-center">Previous</a>
+        {% else %}
+            <button class="btn-disabled grid place-items-center">Previous</button>
+        {% endif %}
+        <div class="card p-4">Card {{ index + 1 }}/{{ total_cards }}</div>
+        {% if index + 1 < total_cards %}
+            <a href="/study/{{ topic_hash }}?index={{ index + 1 }}"
+               class="btn grid place-items-center">Next</a>
+        {% else %}
+            <button class="btn-disabled grid place-items-center">Next</button>
+        {% endif %}
     </div>
-  </div>
-</main>
+{% endblock %}

@@ -29,34 +29,25 @@ fn main() {
     println!("cargo:rerun-if-changed=templates");
     println!("cargo:rerun-if-changed=../../migrations");
 
-    // don't run node on shuttle
-    if !cfg!(debug_assertions) {
-        return;
-    }
+    let out_dir = std::env::var("OUT_DIR").unwrap();
 
-    let mut commands = Vec::new();
+    Command::new("tailwindcss")
+        .args([
+            "-i",
+            "templates/style.css",
+            "-o",
+            &format!("{out_dir}/style.css"),
+        ])
+        .status()
+        .exit_on_failure();
 
-    let bin = concat!(env!("CARGO_MANIFEST_DIR"), "/node_modules/.bin");
-    let tailwind = format!("{bin}/postcss src/style.css -o dist/style.css");
-    commands.push(tailwind);
-    let esbuild = format!("{bin}/esbuild src/init.ts --outfile=dist/init.js --bundle --minify");
-    commands.push(esbuild);
-
-    if cfg!(target_os = "windows") {
-        for command in commands {
-            Command::new("cmd")
-                .arg("/C")
-                .arg(command)
-                .status()
-                .exit_on_failure();
-        }
-    } else {
-        for command in commands {
-            Command::new("sh")
-                .arg("-c")
-                .arg(command)
-                .status()
-                .exit_on_failure();
-        }
-    }
+    Command::new("esbuild")
+        .args([
+            "templates/main.ts",
+            &format!("--outfile={out_dir}/main.js"),
+            "--bundle",
+            "--minify",
+        ])
+        .status()
+        .exit_on_failure();
 }

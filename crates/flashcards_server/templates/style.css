@@ -1,0 +1,71 @@
+@import "katex/dist/katex.css";
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@plugin "@tailwindcss/forms";
+
+@utility auto-grid-* {
+  display: grid;
+  /* prettier-ignore */
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(--value([length]), 100%), 1fr)
+  );
+}
+
+@utility card {
+  @apply bg-stone-50 border-stone-900 border-4;
+}
+
+@utility input {
+  @apply text-white bg-sky-500 px-4 py-2 border-4 border-stone-900 transition-all;
+  @apply hover:bg-sky-400;
+  @apply focus:bg-sky-500 active:bg-sky-500;
+}
+
+@utility btn {
+  @apply text-white bg-sky-500 px-4 py-2 border-4 border-stone-900 transition-all cursor-pointer;
+  @apply hover:scale-110 hover:bg-sky-400;
+  @apply focus:scale-90 focus:bg-sky-500 active:scale-90 active:bg-sky-500;
+}
+
+@utility btn-disabled {
+  @apply text-white bg-sky-500 px-4 py-2 border-4 border-stone-900 opacity-80 cursor-not-allowed;
+}
+
+@utility hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+:root {
+  @apply min-h-full h-full;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+::view-transition-old(fade-body) {
+  animation: 180ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
+}
+
+::view-transition-new(fade-body) {
+  animation: 420ms cubic-bezier(0, 0, 0.2, 1) 90ms both fade-in;
+}
+
+body {
+  @apply min-h-full h-full flex flex-col items-stretch justify-start bg-yellow-300 overflow-x-hidden;
+  view-transition-name: fade-body;
+}

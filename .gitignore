@@ -6,3 +6,4 @@
 /dev.db-shm
 Secrets*.toml
 .shuttle*
+/.nix-gcroot

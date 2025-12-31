@@ -181,8 +181,7 @@ fn render(side: &Source) -> Result<String, Error> {
 
             let engine = typst_as_lib::TypstEngine::builder()
                 .main_file(format!(
-                    r##"#set page(width: auto, height: auto, margin: 0pt, fill: rgb("#1e293b"))
-#set text(fill: white)
+                    r##"#set page(width: auto, height: auto, margin: 1em)
 {}"##,
                     side.source
                 ))
