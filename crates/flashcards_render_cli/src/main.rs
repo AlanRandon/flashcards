@@ -231,28 +231,36 @@ async fn index(
 
     let mut topic_data = HashMap::new();
 
+    let existing_card_hashes = sqlx::query!("SELECT hash FROM card")
+        .fetch_all(pool.as_ref())
+        .await?
+        .into_iter()
+        .map(|record| record.hash)
+        .collect::<HashSet<i64>>();
+
     for card in cards.iter() {
-        let mut hasher = std::hash::DefaultHasher::new();
-        card.term.hash(&mut hasher);
-        card.definition.hash(&mut hasher);
+        let mut card_hasher = std::hash::DefaultHasher::new();
+        card.term.hash(&mut card_hasher);
+        card.definition.hash(&mut card_hasher);
+        card.path.hash(&mut card_hasher);
 
         let mut topic_hashes = HashSet::new();
-        for topic in card.topics.iter() {
-            let mut hasher = std::hash::DefaultHasher::new();
+        for topic in card.topics.iter().sorted() {
+            let mut topic_hasher = std::hash::DefaultHasher::new();
             for segment in topic.0.iter().take(topic.0.len() - 1) {
-                segment.hash(&mut hasher);
+                segment.hash(&mut topic_hasher);
             }
 
             let name = topic.0.last().expect("topic to have at least 1 segment");
 
             let topic_parent_hash = if topic.0.len() > 1 {
-                Some(i64::from_ne_bytes(hasher.finish().to_ne_bytes()))
+                Some(i64::from_ne_bytes(topic_hasher.finish().to_ne_bytes()))
             } else {
                 None
             };
 
-            name.hash(&mut hasher);
-            let topic_hash = i64::from_ne_bytes(hasher.finish().to_ne_bytes());
+            name.hash(&mut topic_hasher);
+            let topic_hash = i64::from_ne_bytes(topic_hasher.finish().to_ne_bytes());
 
             topic_data.entry(topic_hash).or_insert(TopicData {
                 cards: HashSet::new(),
@@ -263,10 +271,10 @@ async fn index(
             });
 
             topic_hashes.insert(topic_hash);
-            topic_hash.hash(&mut hasher);
+            topic_hash.hash(&mut card_hasher);
         }
 
-        let hash = i64::from_ne_bytes(hasher.finish().to_ne_bytes());
+        let hash = i64::from_ne_bytes(card_hasher.finish().to_ne_bytes());
 
         for topic in topic_hashes {
             topic_data.entry(topic).and_modify(|data| {
@@ -279,24 +287,31 @@ async fn index(
             .to_str()
             .ok_or_else(|| Error::NonUtf8Path(card.path.to_path_buf()))?;
 
-        sqlx::query!(
-            "INSERT OR REPLACE INTO card (hash, term, definition, source_path, compiled_at) VALUES (?, ?, ?, ?, ?)",
-            hash,
-            card.term,
-            card.definition,
-            path,
-            compiled_time,
-        )
-        .persistent(true)
-        .execute(pool.as_ref())
-        .await?;
+        if existing_card_hashes.contains(&hash) {
+            sqlx::query!(
+                "UPDATE card
+                SET compiled_at = ?
+                WHERE hash = ?",
+                compiled_time,
+                hash,
+            )
+            .execute(pool.as_ref())
+            .await?;
+        } else {
+            sqlx::query!(
+                "INSERT INTO card (hash, term, definition, source_path, compiled_at) VALUES (?, ?, ?, ?, ?)",
+                hash,
+                card.term,
+                card.definition,
+                path,
+                compiled_time,
+            )
+            .execute(pool.as_ref())
+            .await?;
+        }
 
         index_progress.inc(1);
     }
-
-    sqlx::query!("DELETE FROM card WHERE compiled_at != ?", compiled_time)
-        .execute(pool.as_ref())
-        .await?;
 
     index_progress.set_length(topic_data.len() as u64);
     index_progress.set_position(0);
@@ -305,20 +320,41 @@ async fn index(
     let topic_progress = ProgressBar::new(0).with_style(bar_style("Indexing"));
     let topic_progress = progress.add(topic_progress);
 
+    let existing_topics = sqlx::query!("SELECT hash, cards_hash FROM topic")
+        .fetch_all(pool.as_ref())
+        .await?
+        .into_iter()
+        .map(|record| (record.hash, record.cards_hash))
+        .collect::<HashSet<(i64, i64)>>();
+
     for (topic, data) in topic_data
         .iter()
         .sorted_unstable_by(|a, b| a.1.length.cmp(&b.1.length))
     {
         let name = data.name.as_ref();
+
+        let mut hasher = std::hash::DefaultHasher::new();
+        for hash in data.cards.iter().sorted() {
+            hash.hash(&mut hasher);
+        }
+        let cards_hash = i64::from_ne_bytes(hasher.finish().to_ne_bytes());
+
+        // don't reinsert the topic if it is unchanged
+        if existing_topics.contains(&(*topic, cards_hash)) {
+            index_progress.inc(1);
+            continue;
+        }
+
         topic_progress.set_length(data.cards.len() as u64);
         topic_progress.set_position(0);
         topic_progress.set_message(format!(": {}", data.full_name));
 
         sqlx::query!(
-            "INSERT OR IGNORE INTO topic (hash, name, parent) VALUES (?, ?, ?)",
+            "INSERT OR REPLACE INTO topic (hash, name, parent, cards_hash) VALUES (?, ?, ?, ?)",
             topic,
             name,
             data.parent,
+            cards_hash,
         )
         .persistent(true)
         .execute(pool.as_ref())
@@ -345,6 +381,8 @@ async fn index(
 
     progress.remove(&topic_progress);
     index_progress.set_message(": cleaning");
+    index_progress.set_length(2);
+    index_progress.set_position(0);
 
     sqlx::query!(
         "DELETE FROM topic
@@ -358,6 +396,14 @@ async fn index(
     )
     .execute(pool.as_ref())
     .await?;
+
+    index_progress.inc(1);
+
+    sqlx::query!("DELETE FROM card WHERE compiled_at != ?", compiled_time)
+        .execute(pool.as_ref())
+        .await?;
+
+    index_progress.inc(1);
 
     progress.remove(&index_progress);
     _ = progress.println(section_title("Indexed", SectionTitleState::Done));

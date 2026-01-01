@@ -25,7 +25,7 @@ impl Display for Format {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Topic(pub Vec<Arc<str>>);
 
 impl Display for Topic {

@@ -2,6 +2,7 @@ CREATE TABLE topic (
 	hash INTEGER PRIMARY KEY,
 	name TEXT NOT NULL,
 	parent INTEGER,
+	cards_hash INTEGER NOT NULL,
 	FOREIGN KEY (parent) REFERENCES topic (hash),
 	UNIQUE (name, parent)
 );

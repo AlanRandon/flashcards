@@ -71,16 +71,16 @@ async fn index(
 
     let Ok(topics) = sqlx::query_as!(
         NamedHash,
-        "WITH RECURSIVE ancestors AS (
+        r#"WITH RECURSIVE ancestors AS (
             SELECT parent, name, name AS full_name, hash AS start_hash FROM topic
             UNION ALL
             SELECT topic.parent, ancestors.name, topic.name || '/' || ancestors.full_name AS full_name, ancestors.start_hash
             FROM topic JOIN ancestors ON topic.hash = ancestors.parent
         )
-        SELECT start_hash AS hash, ancestors.full_name AS name
+        SELECT start_hash AS "hash!", ancestors.full_name AS name
         FROM ancestors
         WHERE ancestors.name LIKE ? AND ancestors.parent IS NULL
-        GROUP BY start_hash",
+        GROUP BY start_hash"#,
         pattern
     )
     .fetch_all(pool.as_ref())
@@ -163,7 +163,7 @@ async fn view(
 
     let Ok(children) = sqlx::query_as!(
         NamedHash,
-        "SELECT hash, name FROM topic WHERE parent = ?",
+        r#"SELECT hash AS "hash!", name FROM topic WHERE parent = ?"#,
         hash
     )
     .fetch_all(pool.as_ref())
@@ -333,8 +333,6 @@ async fn main() -> anyhow::Result<()> {
         .with(AddData::new(pool));
 
     let listener = poem::listener::TcpListener::bind("127.0.0.1:8000");
-    println!("listening on http://localhost:8000");
+    println!("Listening on http://localhost:8000");
     Ok(poem::Server::new(listener).run(app).await?)
-
-    // dbg!(cards);
 }
