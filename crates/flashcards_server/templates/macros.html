@@ -1,12 +1,13 @@
-{% macro header(ancestors, hash) %}
+{% macro header(ancestors, hash, total_cards) %}
     <div class="m-4 mb-0 flex gap-4">
-        <div class="grow p-4 bg-rose-500 text-white border-4 border-stone-900">
+        <div class="grow p-4 bg-rose-500 text-white border-4 border-stone-900 flex gap-2 justify-between items-center">
             <h1 class="font-bold inline-flex gap-2">
                 {% for (i, topic) in ancestors.iter().enumerate() %}
                     <a href="/view/{{ topic.hash }}">{{ topic.name }}</a>
                     {% if i + 1 != ancestors.len() %}<span>/</span>{% endif %}
                 {% endfor %}
             </h1>
+            <span>{{ total_cards }} cards</span>
         </div>
         <a class="btn grid place-items-center" href="/view/{{ hash }}">View</a>
         <a class="btn grid place-items-center" href="/study/{{ hash }}">Study</a>

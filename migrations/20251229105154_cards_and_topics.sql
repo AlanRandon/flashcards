@@ -35,7 +35,7 @@ CREATE TABLE card (
 CREATE TABLE card_topic (
 	card INTEGER NOT NULL,
 	topic TEXT NOT NULL,
-	FOREIGN KEY (card) REFERENCES card (hash),
-	FOREIGN KEY (topic) REFERENCES topic (hash),
+	FOREIGN KEY (card) REFERENCES card (hash) ON DELETE CASCADE,
+	FOREIGN KEY (topic) REFERENCES topic (hash) ON DELETE CASCADE,
 	PRIMARY KEY (card, topic)
 );

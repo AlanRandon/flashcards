@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
 {% block content %}
-    {{ macros::header(topic_ancestors, topic_hash) }}
+    {{ macros::header(topic_ancestors, topic_hash, total_cards) }}
     <div class="w-full h-full p-4">{{ macros::flashcard(card) }}</div>
     <div class="overflow-x-scroll w-full px-4 h-24 grid place-items-center hide-scrollbar">
         <ul class="flex gap-4 w-max items-center justify-center">

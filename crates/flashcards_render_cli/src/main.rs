@@ -3,7 +3,7 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
@@ -101,48 +101,6 @@ async fn render_source_cached(
     .await?;
 
     Ok(hash)
-}
-
-async fn insert_card_topics(
-    topics: &HashSet<Arc<flashcards_render::Topic>>,
-    card_hash: i64,
-    pool: &SqlitePool,
-) -> sqlx::Result<()> {
-    let mut txn = pool.begin().await?;
-
-    for flashcards_render::Topic(segments) in topics.into_iter().map(AsRef::as_ref) {
-        assert!(segments.len() >= 1);
-
-        let mut parent = None;
-        let mut hasher = std::hash::DefaultHasher::new();
-        for name in segments.into_iter().map(AsRef::as_ref) {
-            name.hash(&mut hasher);
-            let hash = i64::from_ne_bytes(hasher.finish().to_ne_bytes());
-
-            sqlx::query!(
-                "INSERT OR IGNORE INTO topic (hash, name, parent) VALUES (?, ?, ?)",
-                hash,
-                name,
-                parent,
-            )
-            .execute(&mut *txn)
-            .await?;
-
-            sqlx::query!(
-                "INSERT OR IGNORE INTO card_topic (card, topic) VALUES (?, ?)",
-                card_hash,
-                hash,
-            )
-            .execute(&mut *txn)
-            .await?;
-
-            parent = Some(hash);
-        }
-    }
-
-    txn.commit().await?;
-
-    Ok(())
 }
 
 async fn load(
@@ -244,8 +202,17 @@ async fn render(
     Ok(cards)
 }
 
+#[derive(Debug)]
+struct TopicData {
+    cards: HashSet<i64>,
+    parent: Option<i64>,
+    name: Arc<str>,
+    full_name: String,
+    length: usize,
+}
+
 async fn index(
-    pool: &SqlitePool,
+    pool: &Arc<SqlitePool>,
     cards: &[RenderedCard],
     progress: &MultiProgress,
 ) -> Result<(), Error> {
@@ -258,22 +225,54 @@ async fn index(
     .with_style(bar_style("Indexing"));
     let index_progress = progress.add(index_progress);
 
-    sqlx::query!("DELETE FROM card_topic")
-        .execute(&*pool)
-        .await?;
-
-    sqlx::query!("DELETE FROM topic").execute(&*pool).await?;
+    index_progress.set_message(": cards");
 
     let compiled_time = chrono::Utc::now();
 
-    for card in cards {
+    let mut topic_data = HashMap::new();
+
+    for card in cards.iter() {
         let mut hasher = std::hash::DefaultHasher::new();
         card.term.hash(&mut hasher);
         card.definition.hash(&mut hasher);
+
+        let mut topic_hashes = HashSet::new();
         for topic in card.topics.iter() {
-            topic.hash(&mut hasher);
+            let mut hasher = std::hash::DefaultHasher::new();
+            for segment in topic.0.iter().take(topic.0.len() - 1) {
+                segment.hash(&mut hasher);
+            }
+
+            let name = topic.0.last().expect("topic to have at least 1 segment");
+
+            let topic_parent_hash = if topic.0.len() > 1 {
+                Some(i64::from_ne_bytes(hasher.finish().to_ne_bytes()))
+            } else {
+                None
+            };
+
+            name.hash(&mut hasher);
+            let topic_hash = i64::from_ne_bytes(hasher.finish().to_ne_bytes());
+
+            topic_data.entry(topic_hash).or_insert(TopicData {
+                cards: HashSet::new(),
+                parent: topic_parent_hash,
+                name: Arc::clone(name),
+                full_name: topic.0.join("/"),
+                length: topic.0.len(),
+            });
+
+            topic_hashes.insert(topic_hash);
+            topic_hash.hash(&mut hasher);
         }
+
         let hash = i64::from_ne_bytes(hasher.finish().to_ne_bytes());
+
+        for topic in topic_hashes {
+            topic_data.entry(topic).and_modify(|data| {
+                data.cards.insert(hash);
+            });
+        }
 
         let path = card
             .path
@@ -288,17 +287,77 @@ async fn index(
             path,
             compiled_time,
         )
-        .execute(&*pool)
+        .persistent(true)
+        .execute(pool.as_ref())
         .await?;
-
-        insert_card_topics(&card.topics, hash, &pool).await?;
 
         index_progress.inc(1);
     }
 
     sqlx::query!("DELETE FROM card WHERE compiled_at != ?", compiled_time)
-        .execute(&*pool)
+        .execute(pool.as_ref())
         .await?;
+
+    index_progress.set_length(topic_data.len() as u64);
+    index_progress.set_position(0);
+    index_progress.set_message(": topics");
+
+    let topic_progress = ProgressBar::new(0).with_style(bar_style("Indexing"));
+    let topic_progress = progress.add(topic_progress);
+
+    for (topic, data) in topic_data
+        .iter()
+        .sorted_unstable_by(|a, b| a.1.length.cmp(&b.1.length))
+    {
+        let name = data.name.as_ref();
+        topic_progress.set_length(data.cards.len() as u64);
+        topic_progress.set_position(0);
+        topic_progress.set_message(format!(": {}", data.full_name));
+
+        sqlx::query!(
+            "INSERT OR IGNORE INTO topic (hash, name, parent) VALUES (?, ?, ?)",
+            topic,
+            name,
+            data.parent,
+        )
+        .persistent(true)
+        .execute(pool.as_ref())
+        .await?;
+
+        for card in data.cards.iter().copied() {
+            let pool = Arc::clone(pool);
+            let topic = *topic;
+
+            sqlx::query!(
+                "INSERT OR IGNORE INTO card_topic (card, topic) VALUES (?, ?)",
+                card,
+                topic,
+            )
+            .persistent(true)
+            .execute(pool.as_ref())
+            .await?;
+
+            topic_progress.inc(1);
+        }
+
+        index_progress.inc(1);
+    }
+
+    progress.remove(&topic_progress);
+    index_progress.set_message(": cleaning");
+
+    sqlx::query!(
+        "DELETE FROM topic
+        WHERE topic.hash NOT IN (
+            SELECT card_topic.topic FROM card_topic
+            INNER JOIN card ON card_topic.card = card.hash
+            WHERE card_topic.topic = topic.hash
+            AND card.compiled_at = ?
+        )",
+        compiled_time
+    )
+    .execute(pool.as_ref())
+    .await?;
 
     progress.remove(&index_progress);
     _ = progress.println(section_title("Indexed", SectionTitleState::Done));
