@@ -23,13 +23,25 @@ impl StatusExt for io::Result<ExitStatus> {
 }
 
 fn main() {
-    println!("cargo:rerun-if-changed=tailwind.config.ts");
-    println!("cargo:rerun-if-changed=postcss.config.js");
     println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed=templates");
     println!("cargo:rerun-if-changed=../../migrations");
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
+
+    Command::new("esbuild")
+        .args([
+            "../../node_modules/katex/dist/katex.css",
+            "--bundle",
+            "--minify",
+            "--loader:.woff=file",
+            "--loader:.woff2=file",
+            "--loader:.ttf=file",
+            "--public-path=/static",
+            &format!("--outdir={out_dir}/static"),
+        ])
+        .status()
+        .exit_on_failure();
 
     Command::new("tailwindcss")
         .args([

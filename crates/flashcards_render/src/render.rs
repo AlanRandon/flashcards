@@ -129,13 +129,13 @@ mod katex_scanner {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Malformated TeX")]
+    #[error("Malformatted TeX: {0}")]
     TexError(#[from] tex::Error),
-    #[error("Typst error")]
+    #[error("Typst error: {0}")]
     TypstAsLibError(#[from] typst_as_lib::TypstAsLibError),
-    #[error("Typst error")]
+    #[error("Typst error: {0:?}")]
     TypstError(ecow::vec::EcoVec<typst::diag::SourceDiagnostic>),
-    #[error("KaTeX error")]
+    #[error("KaTeX error: {0}")]
     KatexError(#[from] katex::Error),
 }
 

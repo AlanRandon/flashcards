@@ -318,6 +318,52 @@ async fn study(
     .into_response()
 }
 
+#[derive(rust_embed::RustEmbed)]
+#[folder = "$OUT_DIR/static"]
+struct KatexAsset;
+
+impl poem::Endpoint for KatexAsset {
+    type Output = poem::Response;
+
+    async fn call(&self, req: poem::Request) -> poem::Result<Self::Output> {
+        use poem::http::header;
+
+        if req.method() != poem::http::Method::GET {
+            return Ok(StatusCode::METHOD_NOT_ALLOWED.into());
+        }
+
+        let path = req
+            .uri()
+            .path()
+            .trim_start_matches("/")
+            .trim_end_matches("/");
+
+        match KatexAsset::get(path) {
+            Some(content) => {
+                let hash = hex::encode(content.metadata.sha256_hash());
+                if req
+                    .headers()
+                    .get(header::IF_NONE_MATCH)
+                    .map(|etag| etag.to_str().unwrap_or("000000").eq(&hash))
+                    .unwrap_or(false)
+                {
+                    return Ok(StatusCode::NOT_MODIFIED.into());
+                }
+
+                let body: Vec<u8> = content.data.into();
+                let mime = mime_guess::from_path(path).first_or_octet_stream();
+                Ok(poem::Response::builder()
+                    .header(header::CONTENT_TYPE, mime.as_ref())
+                    .header(header::ETAG, hash)
+                    .body(body))
+            }
+            None => Ok(poem::Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .finish()),
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL")?;
@@ -330,6 +376,7 @@ async fn main() -> anyhow::Result<()> {
         .at("/", poem::get(index))
         .at("/view/:hash", poem::get(view))
         .at("/study/:hash", poem::get(study))
+        .nest("/static", KatexAsset)
         .with(AddData::new(pool));
 
     let listener = poem::listener::TcpListener::bind("127.0.0.1:8000");

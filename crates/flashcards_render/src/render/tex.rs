@@ -8,9 +8,9 @@ use tectonic::{ctry, driver, errmsg};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Tectonic failed to compile TeX")]
+    #[error("Tectonic failed to compile TeX: {0}")]
     Tectonic(#[from] tectonic::Error),
-    #[error("IO failed")]
+    #[error("IO failed: {0}")]
     Io(#[from] std::io::Error),
     #[error("pdftocairo failed")]
     PdfToCairo(std::process::ExitStatus),
