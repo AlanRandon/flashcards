@@ -171,10 +171,7 @@ impl TryFrom<Source> for Rendered {
 fn render(side: &Source) -> Result<String, Error> {
     match side.format {
         Format::Tex => Ok(tex::render(&side.source)?),
-        Format::Markdown => Ok(format!(
-            "<div class=\"prose prose-slate prose-invert prose-xl\">{}</div>",
-            markdown(&side.source)?
-        )),
+        Format::Markdown => Ok(format!("<div>{}</div>", markdown(&side.source)?)),
         Format::Typst => {
             let font_options = typst_as_lib::typst_kit_options::TypstKitFontOptions::new()
                 .include_embedded_fonts(true);

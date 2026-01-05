@@ -2,25 +2,35 @@
 {% import "macros.html" as macros %}
 {% block content %}
     {{ macros::header(topic_ancestors, topic_hash, total_cards) }}
-    <div class="w-full h-full p-4">{{ macros::flashcard(card) }}</div>
-    <div class="overflow-x-scroll w-full px-4 h-24 grid place-items-center hide-scrollbar">
-        <ul class="flex gap-4 w-max items-center justify-center">
-            {% for topic in topics %}<a class="btn w-max" href="/view/{{ topic.hash }}">{{ topic.name }}</a>{% endfor %}
-        </ul>
-    </div>
-    <div class="m-4 flex gap-4 items-center justify-center">
-        {% if index > 0 %}
-            <a href="/study/{{ topic_hash }}?index={{ index - 1 }}"
-               class="btn grid place-items-center">Previous</a>
-        {% else %}
-            <button class="btn-disabled grid place-items-center">Previous</button>
-        {% endif %}
-        <div class="card p-4">Card {{ index + 1 }}/{{ total_cards }}</div>
-        {% if index + 1 < total_cards %}
-            <a href="/study/{{ topic_hash }}?index={{ index + 1 }}"
-               class="btn grid place-items-center">Next</a>
-        {% else %}
-            <button class="btn-disabled grid place-items-center">Next</button>
-        {% endif %}
+    <div id="study-card"
+         class="flex flex-col items-stretch grow h-full w-full">
+        <div class="w-full h-full p-4">{{ macros::flashcard(card) }}</div>
+        <div class="overflow-x-scroll w-full px-4 h-24 grid place-items-center hide-scrollbar">
+            <ul class="flex gap-4 w-max items-center justify-center">
+                {% for topic in topics %}<a class="btn w-max" href="/view/{{ topic.hash }}">{{ topic.name }}</a>{% endfor %}
+            </ul>
+        </div>
+        <div class="m-4 flex gap-4 items-center justify-center">
+            {% if index > 0 %}
+                <a href="/study/{{ topic_hash }}?index={{ index - 1 }}"
+                   class="btn grid place-items-center">Previous</a>
+            {% else %}
+                <button class="btn-disabled grid place-items-center">Previous</button>
+            {% endif %}
+            <div class="card p-4">Card {{ index + 1 }}/{{ total_cards }}</div>
+            {% if index + 1 < total_cards %}
+                <a href="/study/{{ topic_hash }}?index={{ index + 1 }}"
+                   class="btn grid place-items-center">Next</a>
+            {% else %}
+                <button class="btn-disabled grid place-items-center">Next</button>
+            {% endif %}
+            <button hx-get="/study/{{ topic_hash }}"
+                    hx-vals="js:{index:Math.floor(Math.random() * {{ total_cards }})}"
+                    hx-push-url="true"
+                    hx-select="#study-card"
+                    hx-target="#study-card"
+                    hx-swap="outerHTML"
+                    class="btn grid place-items-center">Random</button>
+        </div>
     </div>
 {% endblock %}
